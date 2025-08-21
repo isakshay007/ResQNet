@@ -62,9 +62,9 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Get contributions by responder (email-based now) ---
+    // --- Get contributions by responder (email-based) ---
     public List<ContributionDTO> getByResponder(String responderEmail) {
-        return contributionRepository.findByResponderEmail(responderEmail).stream()
+        return contributionRepository.findByResponder_Email(responderEmail).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
@@ -75,7 +75,7 @@ public class ContributionService {
         dto.setId(c.getId());
         dto.setContributedQuantity(c.getContributedQuantity());
         dto.setRequestId(c.getRequest().getId());
-        dto.setResponderEmail(c.getResponder().getEmail()); //  email instead of id
+        dto.setResponderEmail(c.getResponder().getEmail()); // email instead of id
         dto.setUpdatedAt(c.getUpdatedAt());
         return dto;
     }
