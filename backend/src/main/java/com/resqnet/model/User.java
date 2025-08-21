@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.CreationTimestamp;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -27,10 +30,13 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @CreationTimestamp   // ✅ Hibernate will auto-set this on insert
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
 
     // Link to Disasters (One User can report many Disasters)
     @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore  // prevent infinite loop in JSON serialization
     private List<Disaster> disasters = new ArrayList<>();
 
     // --- Getters & Setters ---

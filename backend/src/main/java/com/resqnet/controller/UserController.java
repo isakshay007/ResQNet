@@ -1,7 +1,7 @@
 package com.resqnet.controller;
 
-import com.resqnet.model.User;
-import com.resqnet.repository.UserRepository;
+import com.resqnet.dto.UserDTO;
+import com.resqnet.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,27 +10,27 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public UserController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     // GET all users
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserDTO> getAllUsers() {
+        return userService.getAllUsers();
     }
 
     // POST create user
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+    public UserDTO createUser(@RequestBody UserDTO dto) {
+        return userService.createUser(dto); // this will return createdAt as well
     }
 
     // GET user by id
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id) {
-        return userRepository.findById(id).orElse(null);
+    public UserDTO getUserById(@PathVariable Long id) {
+        return userService.getUserById(id);
     }
 }

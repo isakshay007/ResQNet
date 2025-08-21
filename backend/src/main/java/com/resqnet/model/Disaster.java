@@ -20,6 +20,7 @@ public class Disaster {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reporter_id")
+    
     private User reporter;     // Who reported this disaster
 
     @Column(updatable = false, nullable = false)

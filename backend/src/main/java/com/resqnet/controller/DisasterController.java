@@ -1,6 +1,6 @@
 package com.resqnet.controller;
 
-import com.resqnet.model.Disaster;
+import com.resqnet.dto.DisasterDTO;
 import com.resqnet.service.DisasterService;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,17 +17,17 @@ public class DisasterController {
     }
 
     @PostMapping
-    public Disaster createDisaster(@RequestBody Disaster disaster) {
-        return disasterService.createDisaster(disaster);
+    public DisasterDTO createDisaster(@RequestBody DisasterDTO dto) {
+        return disasterService.createDisaster(dto);
     }
 
     @GetMapping
-    public List<Disaster> getAllDisasters() {
+    public List<DisasterDTO> getAllDisasters() {
         return disasterService.getAllDisasters();
     }
 
     @GetMapping("/{id}")
-    public Disaster getDisasterById(@PathVariable Long id) {
+    public DisasterDTO getDisasterById(@PathVariable Long id) {
         return disasterService.getDisasterById(id);
     }
 }

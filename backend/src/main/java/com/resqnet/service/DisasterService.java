@@ -1,5 +1,6 @@
 package com.resqnet.service;
 
+import com.resqnet.dto.DisasterDTO;
 import com.resqnet.model.Disaster;
 import com.resqnet.model.User;
 import com.resqnet.repository.DisasterRepository;
@@ -19,21 +20,49 @@ public class DisasterService {
         this.userRepository = userRepository;
     }
 
-    public Disaster createDisaster(Disaster disaster) {
-        // Ensure reporter is fully loaded from DB
-        if (disaster.getReporter() != null && disaster.getReporter().getId() != null) {
-            User reporter = userRepository.findById(disaster.getReporter().getId())
-                    .orElseThrow(() -> new RuntimeException("Reporter not found with id " + disaster.getReporter().getId()));
+    // Save disaster from DTO
+    public DisasterDTO createDisaster(DisasterDTO dto) {
+        Disaster disaster = new Disaster();
+        disaster.setType(dto.getType());
+        disaster.setSeverity(dto.getSeverity());
+        disaster.setDescription(dto.getDescription());
+        disaster.setLatitude(dto.getLatitude());
+        disaster.setLongitude(dto.getLongitude());
+
+        if (dto.getReporterEmail() != null) {
+            User reporter = userRepository.findByEmail(dto.getReporterEmail())
+                    .orElseThrow(() -> new RuntimeException("Reporter not found"));
             disaster.setReporter(reporter);
         }
-        return disasterRepository.save(disaster);
+
+        Disaster saved = disasterRepository.save(disaster);
+        return mapToDTO(saved);
     }
 
-    public List<Disaster> getAllDisasters() {
-        return disasterRepository.findAll();
+    // Get all disasters as DTOs
+    public List<DisasterDTO> getAllDisasters() {
+        return disasterRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .toList();
     }
 
-    public Disaster getDisasterById(Long id) {
-        return disasterRepository.findById(id).orElse(null);
+    // Get single disaster as DTO
+    public DisasterDTO getDisasterById(Long id) {
+        return disasterRepository.findById(id)
+                .map(this::mapToDTO)
+                .orElse(null);
+    }
+
+    // --- Mapping helper ---
+    private DisasterDTO mapToDTO(Disaster disaster) {
+        DisasterDTO dto = new DisasterDTO();
+        dto.setId(disaster.getId());
+        dto.setType(disaster.getType());
+        dto.setSeverity(disaster.getSeverity());
+        dto.setDescription(disaster.getDescription());
+        dto.setLatitude(disaster.getLatitude());
+        dto.setLongitude(disaster.getLongitude());
+        dto.setReporterEmail(disaster.getReporter() != null ? disaster.getReporter().getEmail() : null); // ✅ email instead of id
+        return dto;
     }
 }
