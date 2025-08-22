@@ -14,7 +14,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/requests")
-@CrossOrigin(origins = "*") // ✅ Allow frontend access
+@CrossOrigin(origins = "*") //  Allow frontend access
 public class ResourceRequestController {
 
     private final ResourceRequestService service;

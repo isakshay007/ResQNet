@@ -16,9 +16,8 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    // Create a new user (REPORTER or RESPONDER only)
+    // --- Create a new user (REPORTER or RESPONDER only) ---
     public UserDTO createUser(UserDTO dto) {
-        // Prevent API clients from creating Admins
         if (dto.getRole() == User.Role.ADMIN) {
             throw new IllegalArgumentException("You cannot create an ADMIN user via API.");
         }
@@ -27,26 +26,37 @@ public class UserService {
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
-
-        //  Set a default password (can replace with encoder later)
-        user.setPassword("changeme");
+        user.setPassword("changeme"); // default password
 
         User saved = userRepository.save(user);
         return mapToDTO(saved);
     }
 
-    // Get all users
+    // --- Get all users ---
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // Get user by id
+    // --- Get user by id ---
     public UserDTO getUserById(Long id) {
         return userRepository.findById(id)
                 .map(this::mapToDTO)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    // --- Update user (Admin only) ---
+    public UserDTO updateUser(UserDTO dto) {
+        User user = userRepository.findById(dto.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setName(dto.getName());
+        user.setEmail(dto.getEmail());
+        user.setRole(dto.getRole());
+
+        User updated = userRepository.save(user);
+        return mapToDTO(updated);
     }
 
     // --- Helper: map entity → DTO ---

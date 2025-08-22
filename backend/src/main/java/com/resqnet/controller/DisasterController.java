@@ -14,7 +14,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/disasters")
-@CrossOrigin(origins = "*") // ✅ Allow frontend access
+@CrossOrigin(origins = "*") // Allow frontend access
 public class DisasterController {
 
     private final DisasterService disasterService;

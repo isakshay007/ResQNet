@@ -27,7 +27,7 @@ public class DisasterService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // Save disaster from DTO
+    // --- CREATE disaster from DTO ---
     public DisasterDTO createDisaster(DisasterDTO dto) {
         if (dto.getReporterEmail() == null) {
             throw new RuntimeException("Reporter email is required to create a disaster report");
@@ -36,7 +36,7 @@ public class DisasterService {
         User reporter = userRepository.findByEmail(dto.getReporterEmail())
                 .orElseThrow(() -> new RuntimeException("Reporter not found"));
 
-        //  Only REPORTERS can create disasters
+        // Only REPORTERS can create disasters
         if (reporter.getRole() != User.Role.REPORTER) {
             throw new RuntimeException("Only REPORTER users can create disaster reports");
         }
@@ -64,18 +64,33 @@ public class DisasterService {
         return mapToDTO(saved);
     }
 
-    // Get all disasters as DTOs
+    // --- READ: Get all disasters ---
     public List<DisasterDTO> getAllDisasters() {
         return disasterRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // Get single disaster as DTO
+    // --- READ: Get single disaster ---
     public DisasterDTO getDisasterById(Long id) {
         return disasterRepository.findById(id)
                 .map(this::mapToDTO)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("Disaster not found"));
+    }
+
+    // --- UPDATE disaster (Admin use only) ---
+    public DisasterDTO updateDisaster(DisasterDTO dto) {
+        Disaster disaster = disasterRepository.findById(dto.getId())
+                .orElseThrow(() -> new RuntimeException("Disaster not found"));
+
+        disaster.setType(dto.getType());
+        disaster.setSeverity(dto.getSeverity());
+        disaster.setDescription(dto.getDescription());
+        disaster.setLatitude(dto.getLatitude());
+        disaster.setLongitude(dto.getLongitude());
+
+        Disaster updated = disasterRepository.save(disaster);
+        return mapToDTO(updated);
     }
 
     // --- Mapping helper ---

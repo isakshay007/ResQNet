@@ -26,7 +26,7 @@ public class ResourceRequestService {
         this.userRepository = userRepository;
     }
 
-    // --- Create request from DTO ---
+    // --- CREATE request from DTO ---
     public ResourceRequestDTO createRequest(ResourceRequestDTO dto) {
         if (dto.getReporterEmail() == null) {
             throw new RuntimeException("Reporter email is required");
@@ -35,7 +35,7 @@ public class ResourceRequestService {
         User reporter = userRepository.findByEmail(dto.getReporterEmail())
                 .orElseThrow(() -> new RuntimeException("Reporter not found"));
 
-        //  Only REPORTERS can create resource requests
+        // Only REPORTERS can create requests
         if (reporter.getRole() != User.Role.REPORTER) {
             throw new RuntimeException("Only REPORTER users can create resource requests");
         }
@@ -60,19 +60,40 @@ public class ResourceRequestService {
         return mapToDTO(saved);
     }
 
-    // --- Get all as DTOs ---
+    // --- READ all ---
     public List<ResourceRequestDTO> getAllRequests() {
         return resourceRequestRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // --- Get one as DTO ---
+    // --- READ one ---
     public ResourceRequestDTO getRequestById(Long id) {
         return resourceRequestRepository.findById(id)
                 .map(this::mapToDTO)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("Request not found"));
     }
+
+    // --- UPDATE request (Admin only) ---
+    public ResourceRequestDTO updateRequest(ResourceRequestDTO dto) {
+        ResourceRequest request = resourceRequestRepository.findById(dto.getId())
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        request.setCategory(dto.getCategory());
+        request.setRequestedQuantity(dto.getRequestedQuantity());
+        request.setFulfilledQuantity(dto.getFulfilledQuantity());
+        request.setStatus(dto.getStatus());
+
+        if (dto.getDisasterId() != null) {
+            Disaster disaster = disasterRepository.findById(dto.getDisasterId())
+                    .orElseThrow(() -> new RuntimeException("Disaster not found"));
+            request.setDisaster(disaster);
+        }
+
+        ResourceRequest updated = resourceRequestRepository.save(request);
+        return mapToDTO(updated);
+    }
+
 
     // --- Mapping helper ---
     private ResourceRequestDTO mapToDTO(ResourceRequest r) {
