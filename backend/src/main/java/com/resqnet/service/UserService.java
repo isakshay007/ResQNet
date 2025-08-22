@@ -16,12 +16,20 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    // Create a new user
+    // Create a new user (REPORTER or RESPONDER only)
     public UserDTO createUser(UserDTO dto) {
+        // Prevent API clients from creating Admins
+        if (dto.getRole() == User.Role.ADMIN) {
+            throw new IllegalArgumentException("You cannot create an ADMIN user via API.");
+        }
+
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
+
+        //  Set a default password (can replace with encoder later)
+        user.setPassword("changeme");
 
         User saved = userRepository.save(user);
         return mapToDTO(saved);
@@ -48,7 +56,7 @@ public class UserService {
         dto.setName(user.getName());
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
-        dto.setCreatedAt(user.getCreatedAt()); //  include createdAt
+        dto.setCreatedAt(user.getCreatedAt());
         return dto;
     }
 }

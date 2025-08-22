@@ -29,22 +29,29 @@ public class DisasterService {
 
     // Save disaster from DTO
     public DisasterDTO createDisaster(DisasterDTO dto) {
+        if (dto.getReporterEmail() == null) {
+            throw new RuntimeException("Reporter email is required to create a disaster report");
+        }
+
+        User reporter = userRepository.findByEmail(dto.getReporterEmail())
+                .orElseThrow(() -> new RuntimeException("Reporter not found"));
+
+        //  Only REPORTERS can create disasters
+        if (reporter.getRole() != User.Role.REPORTER) {
+            throw new RuntimeException("Only REPORTER users can create disaster reports");
+        }
+
         Disaster disaster = new Disaster();
         disaster.setType(dto.getType());
         disaster.setSeverity(dto.getSeverity());
         disaster.setDescription(dto.getDescription());
         disaster.setLatitude(dto.getLatitude());
         disaster.setLongitude(dto.getLongitude());
-
-        if (dto.getReporterEmail() != null) {
-            User reporter = userRepository.findByEmail(dto.getReporterEmail())
-                    .orElseThrow(() -> new RuntimeException("Reporter not found"));
-            disaster.setReporter(reporter);
-        }
+        disaster.setReporter(reporter);
 
         Disaster saved = disasterRepository.save(disaster);
 
-        //  Publish to Kafka after saving
+        // Publish to Kafka after saving
         String message = String.format(
                 "New Disaster Reported: [id=%d, type=%s, severity=%s, reporter=%s]",
                 saved.getId(),

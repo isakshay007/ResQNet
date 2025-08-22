@@ -35,6 +35,18 @@ public class ContributionService {
         User responder = userRepository.findByEmail(dto.getResponderEmail())
                 .orElseThrow(() -> new RuntimeException("Responder not found"));
 
+        //  Only RESPONDER can contribute
+        if (responder.getRole() != User.Role.RESPONDER) {
+            throw new RuntimeException("Only RESPONDER users can contribute to requests");
+        }
+
+        int pending = request.getRequestedQuantity() - request.getFulfilledQuantity();
+        if (dto.getContributedQuantity() > pending) {
+            throw new RuntimeException(
+                    "Contribution exceeds pending quantity. Pending: " + pending
+            );
+        }
+
         Contribution contribution = new Contribution();
         contribution.setContributedQuantity(dto.getContributedQuantity());
         contribution.setRequest(request);
@@ -42,9 +54,15 @@ public class ContributionService {
 
         // Update request fulfillment
         request.addFulfilledQuantity(dto.getContributedQuantity());
-        requestRepository.save(request);
 
+        // If fully met, mark request as FULFILLED
+        if (request.getFulfilledQuantity() >= request.getRequestedQuantity()) {
+            request.setStatus(ResourceRequest.Status.FULFILLED);
+        }
+
+        requestRepository.save(request);
         Contribution saved = contributionRepository.save(contribution);
+
         return mapToDTO(saved);
     }
 

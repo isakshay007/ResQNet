@@ -28,6 +28,18 @@ public class ResourceRequestService {
 
     // --- Create request from DTO ---
     public ResourceRequestDTO createRequest(ResourceRequestDTO dto) {
+        if (dto.getReporterEmail() == null) {
+            throw new RuntimeException("Reporter email is required");
+        }
+
+        User reporter = userRepository.findByEmail(dto.getReporterEmail())
+                .orElseThrow(() -> new RuntimeException("Reporter not found"));
+
+        //  Only REPORTERS can create resource requests
+        if (reporter.getRole() != User.Role.REPORTER) {
+            throw new RuntimeException("Only REPORTER users can create resource requests");
+        }
+
         ResourceRequest request = new ResourceRequest();
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
@@ -42,11 +54,7 @@ public class ResourceRequestService {
             request.setDisaster(disaster);
         }
 
-        if (dto.getReporterEmail() != null) {
-            User reporter = userRepository.findByEmail(dto.getReporterEmail())
-                    .orElseThrow(() -> new RuntimeException("Reporter not found"));
-            request.setReporter(reporter);
-        }
+        request.setReporter(reporter);
 
         ResourceRequest saved = resourceRequestRepository.save(request);
         return mapToDTO(saved);
@@ -72,11 +80,11 @@ public class ResourceRequestService {
         dto.setId(r.getId());
         dto.setCategory(r.getCategory());
         dto.setRequestedQuantity(r.getRequestedQuantity());
-        dto.setFulfilledQuantity(r.getFulfilledQuantity()); 
+        dto.setFulfilledQuantity(r.getFulfilledQuantity());
         dto.setStatus(r.getStatus());
         dto.setCreatedAt(r.getCreatedAt());
         dto.setDisasterId(r.getDisaster() != null ? r.getDisaster().getId() : null);
-        dto.setReporterEmail(r.getReporter() != null ? r.getReporter().getEmail() : null); // ✅ email instead of id
+        dto.setReporterEmail(r.getReporter() != null ? r.getReporter().getEmail() : null);
         return dto;
     }
 }
