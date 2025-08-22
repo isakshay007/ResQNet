@@ -1,14 +1,24 @@
 package com.resqnet.dto;
 
 import com.resqnet.model.User;
+import jakarta.validation.constraints.*;
+
 import java.time.LocalDateTime;
 
 public class UserDTO {
     private Long id;
+
+    @NotBlank(message = "Name is required")
     private String name;
+
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
     private String email;
+
+    @NotNull(message = "Role is required")
     private User.Role role;
-    private LocalDateTime createdAt;   //  new field
+
+    private LocalDateTime createdAt;
 
     // --- Getters & Setters ---
     public Long getId() { return id; }
@@ -23,6 +33,6 @@ public class UserDTO {
     public User.Role getRole() { return role; }
     public void setRole(User.Role role) { this.role = role; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }   //  getter
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }  //  setter
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

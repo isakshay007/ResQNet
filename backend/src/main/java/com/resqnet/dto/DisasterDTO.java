@@ -1,13 +1,30 @@
 package com.resqnet.dto;
 
+import jakarta.validation.constraints.*;
+
 public class DisasterDTO {
     private Long id;
+
+    @NotBlank(message = "Disaster type is required")
     private String type;
+
+    @NotBlank(message = "Severity is required")
     private String severity;
+
+    @NotBlank(message = "Description is required")
     private String description;
+
+    @DecimalMin(value = "-90.0", message = "Latitude must be >= -90")
+    @DecimalMax(value = "90.0", message = "Latitude must be <= 90")
     private double latitude;
+
+    @DecimalMin(value = "-180.0", message = "Longitude must be >= -180")
+    @DecimalMax(value = "180.0", message = "Longitude must be <= 180")
     private double longitude;
-    private String reporterEmail; //  instead of reporterId
+
+    @NotBlank(message = "Reporter email is required")
+    @Email(message = "Reporter email must be valid")
+    private String reporterEmail; // instead of reporterId
 
     // --- Getters & Setters ---
     public Long getId() { return id; }

@@ -1,16 +1,31 @@
 package com.resqnet.dto;
 
 import com.resqnet.model.ResourceRequest;
+import jakarta.validation.constraints.*;
+
 import java.time.LocalDateTime;
 
 public class ResourceRequestDTO {
     private Long id;
+
+    @NotBlank(message = "Category is required")
     private String category;
+
+    @Min(value = 1, message = "Requested quantity must be at least 1")
     private int requestedQuantity;
+
+    @Min(value = 0, message = "Fulfilled quantity cannot be negative")
     private int fulfilledQuantity;
+
     private ResourceRequest.Status status;
+
+    @NotNull(message = "Disaster ID is required")
     private Long disasterId;
-    private String reporterEmail; // instead of reporterId
+
+    @NotBlank(message = "Reporter email is required")
+    @Email(message = "Reporter email must be valid")
+    private String reporterEmail;
+
     private LocalDateTime createdAt;
 
     // --- Getters & Setters ---

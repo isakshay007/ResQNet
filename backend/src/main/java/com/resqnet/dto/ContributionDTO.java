@@ -1,12 +1,22 @@
 package com.resqnet.dto;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 public class ContributionDTO {
     private Long id;
+
+    @Min(value = 1, message = "Contribution quantity must be at least 1")
     private int contributedQuantity;
+
+    @NotNull(message = "Request ID is required")
     private Long requestId;
-    private String responderEmail; //  instead of responderId
+
+    @NotBlank(message = "Responder email is required")
+    private String responderEmail; // instead of responderId
+
     private LocalDateTime updatedAt;
 
     // --- Getters & Setters ---
