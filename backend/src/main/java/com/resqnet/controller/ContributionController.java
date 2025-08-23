@@ -3,6 +3,7 @@ package com.resqnet.controller;
 import com.resqnet.dto.ContributionDTO;
 import com.resqnet.service.ContributionService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,10 +27,10 @@ public class ContributionController {
     /**
      * Create a new contribution (Responder contributes to a resource request).
      *
-     * @param dto Contribution data (validated)
-     * @return saved ContributionDTO
+     * Only RESPONDERs are allowed.
      */
     @PostMapping
+    @PreAuthorize("hasRole('RESPONDER')")
     public ContributionDTO createContribution(@Valid @RequestBody ContributionDTO dto) {
         return service.createContribution(dto);
     }
@@ -37,7 +38,7 @@ public class ContributionController {
     /**
      * Get all contributions in the system.
      *
-     * @return list of ContributionDTO
+     * Open to all authenticated users (can restrict to ADMIN if needed).
      */
     @GetMapping
     public List<ContributionDTO> getAllContributions() {
@@ -47,8 +48,7 @@ public class ContributionController {
     /**
      * Get contributions made for a specific request.
      *
-     * @param requestId ID of the resource request
-     * @return list of contributions for that request
+     * Open to all authenticated users.
      */
     @GetMapping("/request/{requestId}")
     public List<ContributionDTO> getByRequest(@PathVariable Long requestId) {
@@ -58,8 +58,7 @@ public class ContributionController {
     /**
      * Get contributions made by a specific responder (by email).
      *
-     * @param responderEmail responder's email
-     * @return list of contributions by that responder
+     * Open to all authenticated users.
      */
     @GetMapping("/responder/{responderEmail}")
     public List<ContributionDTO> getByResponder(@PathVariable String responderEmail) {

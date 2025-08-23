@@ -1,20 +1,22 @@
 package com.resqnet.controller;
 
+import com.resqnet.dto.UserCreateRequest;
 import com.resqnet.dto.UserDTO;
 import com.resqnet.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * REST controller for managing Users.
- * - Reporters, Responders, and Admins are created and fetched via this controller.
- * - Password handling will be added later during Security integration.
+ * - Reporters, Responders self-register via /api/auth/register.
+ * - Admins can fetch/manage users here.
  */
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "*") //  Allow frontend access
+@CrossOrigin(origins = "*") // Allow frontend access
 public class UserController {
 
     private final UserService userService;
@@ -24,33 +26,31 @@ public class UserController {
     }
 
     /**
-     * Fetch all users (Admin only in the future).
-     *
-     * @return list of UserDTO
+     * Fetch all users (ADMIN only).
      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserDTO> getAllUsers() {
         return userService.getAllUsers();
     }
 
     /**
-     * Create a new user (Reporter / Responder via signup).
+     * Create a new user (Admin creates REPORTER/RESPONDER accounts).
      *
-     * @param dto UserDTO containing user details
-     * @return saved UserDTO
+     * Reporters & Responders should normally use /api/auth/register,
+     * but ADMIN can also create accounts directly here.
      */
     @PostMapping
-    public UserDTO createUser(@Valid @RequestBody UserDTO dto) {
-        return userService.createUser(dto);
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserDTO createUser(@Valid @RequestBody UserCreateRequest req) {
+        return userService.createUser(req);
     }
 
     /**
-     * Fetch a specific user by ID.
-     *
-     * @param id user ID
-     * @return UserDTO
+     * Fetch a specific user by ID (ADMIN only).
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDTO getUserById(@PathVariable Long id) {
         return userService.getUserById(id);
     }

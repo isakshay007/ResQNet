@@ -28,7 +28,7 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
-    private String password; // ⚠️ Later encrypt this (e.g., BCrypt)
+    private String password; // Later encrypt this (e.g., BCrypt)
 
     @Column(nullable = false, unique = true)
     private String email;

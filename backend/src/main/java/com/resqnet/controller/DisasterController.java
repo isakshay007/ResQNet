@@ -3,6 +3,7 @@ package com.resqnet.controller;
 import com.resqnet.dto.DisasterDTO;
 import com.resqnet.service.DisasterService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,10 +27,10 @@ public class DisasterController {
     /**
      * Create a new disaster report (Reporter action).
      *
-     * @param dto DisasterDTO with type, severity, description, lat/lng
-     * @return saved DisasterDTO
+     * Only REPORTERs are allowed to create.
      */
     @PostMapping
+    @PreAuthorize("hasRole('REPORTER')")
     public DisasterDTO createDisaster(@Valid @RequestBody DisasterDTO dto) {
         return disasterService.createDisaster(dto);
     }
@@ -37,7 +38,7 @@ public class DisasterController {
     /**
      * Fetch all disasters (used for global map display).
      *
-     * @return list of DisasterDTO
+     * Open to all authenticated users.
      */
     @GetMapping
     public List<DisasterDTO> getAllDisasters() {
@@ -47,8 +48,7 @@ public class DisasterController {
     /**
      * Fetch a specific disaster by ID.
      *
-     * @param id disaster ID
-     * @return DisasterDTO
+     * Open to all authenticated users.
      */
     @GetMapping("/{id}")
     public DisasterDTO getDisasterById(@PathVariable Long id) {

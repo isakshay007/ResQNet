@@ -1,8 +1,10 @@
 package com.resqnet.service;
 
+import com.resqnet.dto.UserCreateRequest;
 import com.resqnet.dto.UserDTO;
 import com.resqnet.model.User;
 import com.resqnet.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,22 +13,26 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // --- Create a new user (REPORTER or RESPONDER only) ---
-    public UserDTO createUser(UserDTO dto) {
-        if (dto.getRole() == User.Role.ADMIN) {
+    public UserDTO createUser(UserCreateRequest req) {
+        if (req.getRole() == User.Role.ADMIN) {
             throw new IllegalArgumentException("You cannot create an ADMIN user via API.");
         }
 
         User user = new User();
-        user.setName(dto.getName());
-        user.setEmail(dto.getEmail());
-        user.setRole(dto.getRole());
-        user.setPassword("changeme"); // default password
+        user.setName(req.getName());
+        user.setEmail(req.getEmail());
+        user.setRole(req.getRole());
+
+        //  Securely encode password provided by user
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
 
         User saved = userRepository.save(user);
         return mapToDTO(saved);
@@ -67,6 +73,7 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
+        // No password here → keeps responses safe
         return dto;
     }
 }

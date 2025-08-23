@@ -3,6 +3,7 @@ package com.resqnet.controller;
 import com.resqnet.dto.ResourceRequestDTO;
 import com.resqnet.service.ResourceRequestService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,10 +27,10 @@ public class ResourceRequestController {
     /**
      * Create a new resource request (Reporter action).
      *
-     * @param dto ResourceRequestDTO with category, quantity, disasterId, etc.
-     * @return saved ResourceRequestDTO
+     * Only REPORTERs are allowed.
      */
     @PostMapping
+    @PreAuthorize("hasRole('REPORTER')")
     public ResourceRequestDTO createRequest(@Valid @RequestBody ResourceRequestDTO dto) {
         return service.createRequest(dto);
     }
@@ -37,7 +38,7 @@ public class ResourceRequestController {
     /**
      * Fetch all resource requests (for map/dashboard display).
      *
-     * @return list of ResourceRequestDTO
+     * Open to all authenticated users (could restrict further if needed).
      */
     @GetMapping
     public List<ResourceRequestDTO> getAllRequests() {
@@ -47,8 +48,7 @@ public class ResourceRequestController {
     /**
      * Fetch a specific request by ID.
      *
-     * @param id request ID
-     * @return ResourceRequestDTO
+     * Open to all authenticated users.
      */
     @GetMapping("/{id}")
     public ResourceRequestDTO getRequestById(@PathVariable Long id) {
