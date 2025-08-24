@@ -33,7 +33,7 @@ public class ContributionService {
     // --- Create contribution (responderEmail comes from Authentication, not DTO) ---
     @Transactional
     public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
-        //  Lock the ResourceRequest row to prevent race conditions
+        // Lock the ResourceRequest row to prevent race conditions
         ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
                 .orElseThrow(() -> new EntityNotFoundException("Resource Request not found"));
 
@@ -74,15 +74,20 @@ public class ContributionService {
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
-
-    // --- Admin/Responder unrestricted ---
+    
+    // --- Admin unrestricted ---
     public List<ContributionDTO> getByRequest(Long requestId) {
         return contributionRepository.findByRequestId(requestId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- Reporter restricted ---
+    public List<ContributionDTO> getByResponder(String responderEmail) {
+        return contributionRepository.findByResponder_Email(responderEmail).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+    // --- Reporter restricted / Responder & Admin unrestricted ---
     public List<ContributionDTO> getByRequestWithSecurity(Long requestId, String userEmail) {
         ResourceRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
@@ -90,24 +95,32 @@ public class ContributionService {
         User loggedInUser = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
+        // Reporter → only their own requests
         if (loggedInUser.getRole() == User.Role.REPORTER &&
                 !request.getReporter().getEmail().equalsIgnoreCase(userEmail)) {
             throw new AccessDeniedException("You are not authorized to view contributions for this request");
         }
 
+        // Responder & Admin → unrestricted
         return contributionRepository.findByRequestId(requestId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- Responder restricted / Admin unrestricted ---
+    // --- Responder restricted (only own) / Admin unrestricted ---
     public List<ContributionDTO> getByResponderWithSecurity(String responderEmail, String loggedInEmail) {
         User loggedInUser = userRepository.findByEmail(loggedInEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
+        // Responder → only view their own contributions
         if (loggedInUser.getRole() == User.Role.RESPONDER &&
                 !responderEmail.equalsIgnoreCase(loggedInEmail)) {
             throw new AccessDeniedException("You can only view your own contributions");
+        }
+
+        // Reporter not allowed here
+        if (loggedInUser.getRole() == User.Role.REPORTER) {
+            throw new AccessDeniedException("Reporters cannot view responder-specific contributions");
         }
 
         return contributionRepository.findByResponder_Email(responderEmail).stream()
@@ -115,11 +128,19 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Admin unrestricted ---
-    public List<ContributionDTO> getByResponder(String responderEmail) {
-        return contributionRepository.findByResponder_Email(responderEmail).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    // --- Admin: Delete contribution ---
+    @Transactional
+    public void deleteContribution(Long id) {
+        Contribution contribution = contributionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Contribution not found"));
+
+        // Before deleting, adjust the parent request fulfillment
+        ResourceRequest request = contribution.getRequest();
+        request.setFulfilledQuantity(request.getFulfilledQuantity() - contribution.getContributedQuantity());
+        request.updateStatus();
+        requestRepository.save(request);
+
+        contributionRepository.delete(contribution);
     }
 
     // --- Helper ---

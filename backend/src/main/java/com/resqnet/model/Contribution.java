@@ -3,6 +3,8 @@ package com.resqnet.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(name = "contributions")
@@ -16,10 +18,12 @@ public class Contribution {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) // DB-level cascade delete
     private ResourceRequest request;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "responder_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) // DB-level cascade delete
     private User responder; // User with role RESPONDER
 
     @UpdateTimestamp

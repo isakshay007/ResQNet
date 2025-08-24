@@ -2,6 +2,10 @@ package com.resqnet.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "resource_requests")
@@ -33,6 +37,11 @@ public class ResourceRequest {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    // 🔹 One ResourceRequest → Many Contributions
+    @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<Contribution> contributions = new ArrayList<>();
+
     // --- Business Logic ---
     public void addFulfilledQuantity(int quantity) {
         this.fulfilledQuantity += quantity;
@@ -48,7 +57,6 @@ public class ResourceRequest {
     }
 
     // --- Getters & Setters ---
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -75,4 +83,7 @@ public class ResourceRequest {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public List<Contribution> getContributions() { return contributions; }
+    public void setContributions(List<Contribution> contributions) { this.contributions = contributions; }
 }

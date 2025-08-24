@@ -86,6 +86,12 @@ public class AdminController {
         return userService.getAllUsers();
     }
 
+    @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+    }
+
     // ---------------- CONTRIBUTIONS ----------------
     @GetMapping("/contributions")
     @PreAuthorize("hasRole('ADMIN')")
@@ -103,6 +109,12 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public List<ContributionDTO> getContributionsByResponder(@PathVariable String responderEmail) {
         return contributionService.getByResponder(responderEmail);
+    }
+
+    @DeleteMapping("/contributions/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteContribution(@PathVariable Long id) {
+        contributionService.deleteContribution(id);
     }
 
     // ---------------- DASHBOARD SUMMARY ----------------

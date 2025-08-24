@@ -13,8 +13,9 @@ import java.util.List;
  * REST controller for managing Contributions
  *
  * Role rules:
- * - RESPONDER: can create contributions, and view only their own contributions.
- * - REPORTER: can only view contributions made to their own resource requests.
+ * - RESPONDER: can create contributions, see ALL contributions for ANY request,
+ *              and view only their own contributions by responderEmail.
+ * - REPORTER: can only view contributions made to their OWN resource requests.
  * - ADMIN: has full access to all contributions.
  */
 @RestController
@@ -30,9 +31,7 @@ public class ContributionController {
 
     /**
      * Create a new contribution.
-     *
      * Allowed: RESPONDER
-     * 🚀 Always uses authenticated user's email, ignores any DTO email.
      */
     @PostMapping
     @PreAuthorize("hasRole('RESPONDER')")
@@ -43,7 +42,6 @@ public class ContributionController {
 
     /**
      * Get all contributions in the system.
-     *
      * Allowed: ADMIN only
      */
     @GetMapping
@@ -57,8 +55,8 @@ public class ContributionController {
      *
      * Allowed:
      * - REPORTER → only for their own requests.
-     * - RESPONDER → can view any request's contributions.
-     * - ADMIN → can view any request's contributions.
+     * - RESPONDER → can view ALL contributions for ANY request.
+     * - ADMIN → unrestricted.
      */
     @GetMapping("/request/{requestId}")
     @PreAuthorize("isAuthenticated()")
@@ -71,8 +69,8 @@ public class ContributionController {
      * Get contributions made by a specific responder.
      *
      * Allowed:
-     * - RESPONDER → can only view their own contributions.
-     * - ADMIN → can view contributions from any responder.
+     * - RESPONDER → only their own contributions.
+     * - ADMIN → unrestricted.
      */
     @GetMapping("/responder/{responderEmail}")
     @PreAuthorize("isAuthenticated()")

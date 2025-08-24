@@ -2,6 +2,10 @@ package com.resqnet.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "disasters")
@@ -20,11 +24,15 @@ public class Disaster {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reporter_id")
-    
     private User reporter;     // Who reported this disaster
 
     @Column(updatable = false, nullable = false)
     private LocalDateTime createdAt;
+
+    // 🔹 One Disaster → Many ResourceRequests
+    @OneToMany(mappedBy = "disaster", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ResourceRequest> requests = new ArrayList<>();
 
     // --- Lifecycle Hook to Auto-Set createdAt ---
     @PrePersist
@@ -55,4 +63,7 @@ public class Disaster {
     public void setReporter(User reporter) { this.reporter = reporter; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public List<ResourceRequest> getRequests() { return requests; }
+    public void setRequests(List<ResourceRequest> requests) { this.requests = requests; }
 }
