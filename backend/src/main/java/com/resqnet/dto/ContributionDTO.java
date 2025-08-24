@@ -1,7 +1,8 @@
 package com.resqnet.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
@@ -14,8 +15,9 @@ public class ContributionDTO {
     @NotNull(message = "Request ID is required")
     private Long requestId;
 
-    @NotBlank(message = "Responder email is required")
-    private String responderEmail; // instead of responderId
+    //  Read-only: filled by backend from Authentication
+    @JsonProperty(access = Access.READ_ONLY)
+    private String responderEmail;
 
     private LocalDateTime updatedAt;
 

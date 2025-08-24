@@ -4,6 +4,7 @@ import com.resqnet.dto.DisasterDTO;
 import com.resqnet.service.DisasterService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,11 +29,13 @@ public class DisasterController {
      * Create a new disaster report (Reporter action).
      *
      * Only REPORTERs are allowed to create.
+     *  We no longer trust `reporterEmail` from the DTO.
+     *  Instead, we always use the authenticated user (auth.getName()).
      */
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
-    public DisasterDTO createDisaster(@Valid @RequestBody DisasterDTO dto) {
-        return disasterService.createDisaster(dto);
+    public DisasterDTO createDisaster(@Valid @RequestBody DisasterDTO dto, Authentication auth) {
+        return disasterService.createDisaster(dto, auth.getName());
     }
 
     /**
@@ -41,6 +44,7 @@ public class DisasterController {
      * Open to all authenticated users.
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<DisasterDTO> getAllDisasters() {
         return disasterService.getAllDisasters();
     }
@@ -51,6 +55,7 @@ public class DisasterController {
      * Open to all authenticated users.
      */
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public DisasterDTO getDisasterById(@PathVariable Long id) {
         return disasterService.getDisasterById(id);
     }

@@ -1,12 +1,12 @@
 package com.resqnet.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(
@@ -28,7 +28,7 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
-    private String password; // Later encrypt this (e.g., BCrypt)
+    private String password; // BCrypt hashed
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -44,10 +44,22 @@ public class User {
     @Column(updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
-    // One Reporter → Many Disasters
+    // --- Relationships ---
+
+    // Reporter → Disasters
     @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Disaster> disasters = new ArrayList<>();
+
+    // Reporter → Resource Requests
+    @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ResourceRequest> resourceRequests = new ArrayList<>();
+
+    // Responder → Contributions
+    @OneToMany(mappedBy = "responder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<Contribution> contributions = new ArrayList<>();
 
     // --- Getters & Setters ---
     public Long getId() { return id; }
@@ -70,4 +82,10 @@ public class User {
 
     public List<Disaster> getDisasters() { return disasters; }
     public void setDisasters(List<Disaster> disasters) { this.disasters = disasters; }
+
+    public List<ResourceRequest> getResourceRequests() { return resourceRequests; }
+    public void setResourceRequests(List<ResourceRequest> resourceRequests) { this.resourceRequests = resourceRequests; }
+
+    public List<Contribution> getContributions() { return contributions; }
+    public void setContributions(List<Contribution> contributions) { this.contributions = contributions; }
 }

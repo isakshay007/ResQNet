@@ -54,4 +54,23 @@ public class UserController {
     public UserDTO getUserById(@PathVariable Long id) {
         return userService.getUserById(id);
     }
+
+    /**
+     * Update an existing user (ADMIN only).
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserDTO updateUser(@PathVariable Long id, @Valid @RequestBody UserDTO dto) {
+        dto.setId(id);
+        return userService.updateUser(dto);
+    }
+
+    /**
+     * Delete a user (ADMIN only).
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+    }
 }

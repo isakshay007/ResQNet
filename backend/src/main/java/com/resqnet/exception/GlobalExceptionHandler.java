@@ -1,7 +1,9 @@
 package com.resqnet.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -16,7 +18,7 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Handle @Valid validation errors
+    // --- Handle @Valid validation errors ---
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -25,30 +27,44 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-        return ResponseEntity.badRequest().body(errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
-    //  Handle illegal arguments (e.g. trying to create ADMIN via API)
+    // --- Handle illegal arguments (bad input, business logic violation) ---
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // Handle generic RuntimeException (fallback)
+    // --- Handle entity not found (404) ---
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(EntityNotFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    // --- Handle access denied (403) ---
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+        return buildError(HttpStatus.FORBIDDEN, "Access denied: " + ex.getMessage());
+    }
+
+    // --- Handle generic runtime exceptions (500) ---
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error: " + ex.getMessage());
     }
 
-    //  Catch-all for any other unhandled exception
+    // --- Catch-all for any other unhandled exceptions ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneral(Exception ex) {
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong, please try again later.");
+    }
+
+    // --- Helper method for consistent error format ---
+    private ResponseEntity<Map<String, String>> buildError(HttpStatus status, String message) {
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Something went wrong: " + ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        error.put("error", message);
+        error.put("status", status.name());
+        return ResponseEntity.status(status).body(error);
     }
 }

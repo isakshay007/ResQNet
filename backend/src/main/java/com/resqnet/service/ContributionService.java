@@ -7,8 +7,11 @@ import com.resqnet.model.User;
 import com.resqnet.repository.ContributionRepository;
 import com.resqnet.repository.ResourceRequestRepository;
 import com.resqnet.repository.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,22 +30,23 @@ public class ContributionService {
         this.userRepository = userRepository;
     }
 
-    // --- Create contribution ---
-    public ContributionDTO createContribution(ContributionDTO dto) {
-        ResourceRequest request = requestRepository.findById(dto.getRequestId())
-                .orElseThrow(() -> new RuntimeException("Resource Request not found"));
+    // --- Create contribution (responderEmail comes from Authentication, not DTO) ---
+    @Transactional
+    public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
+        //  Lock the ResourceRequest row to prevent race conditions
+        ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
+                .orElseThrow(() -> new EntityNotFoundException("Resource Request not found"));
 
-        User responder = userRepository.findByEmail(dto.getResponderEmail())
-                .orElseThrow(() -> new RuntimeException("Responder not found"));
+        User responder = userRepository.findByEmail(responderEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Responder not found"));
 
-        //  Only RESPONDER can contribute
         if (responder.getRole() != User.Role.RESPONDER) {
-            throw new RuntimeException("Only RESPONDER users can contribute to requests");
+            throw new AccessDeniedException("Only RESPONDER users can contribute to requests");
         }
 
         int pending = request.getRequestedQuantity() - request.getFulfilledQuantity();
         if (dto.getContributedQuantity() > pending) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Contribution exceeds pending quantity. Pending: " + pending
             );
         }
@@ -52,10 +56,8 @@ public class ContributionService {
         contribution.setRequest(request);
         contribution.setResponder(responder);
 
-        // Update request fulfillment
+        // Update request fulfillment safely
         request.addFulfilledQuantity(dto.getContributedQuantity());
-
-        // If fully met, mark request as FULFILLED
         if (request.getFulfilledQuantity() >= request.getRequestedQuantity()) {
             request.setStatus(ResourceRequest.Status.FULFILLED);
         }
@@ -66,34 +68,67 @@ public class ContributionService {
         return mapToDTO(saved);
     }
 
-    // --- Get all contributions ---
+    // --- Admin only ---
     public List<ContributionDTO> getAllContributions() {
         return contributionRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- Get contributions by request ---
+    // --- Admin/Responder unrestricted ---
     public List<ContributionDTO> getByRequest(Long requestId) {
         return contributionRepository.findByRequestId(requestId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- Get contributions by responder (email-based) ---
+    // --- Reporter restricted ---
+    public List<ContributionDTO> getByRequestWithSecurity(Long requestId, String userEmail) {
+        ResourceRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new EntityNotFoundException("Request not found"));
+
+        User loggedInUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (loggedInUser.getRole() == User.Role.REPORTER &&
+                !request.getReporter().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new AccessDeniedException("You are not authorized to view contributions for this request");
+        }
+
+        return contributionRepository.findByRequestId(requestId).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // --- Responder restricted / Admin unrestricted ---
+    public List<ContributionDTO> getByResponderWithSecurity(String responderEmail, String loggedInEmail) {
+        User loggedInUser = userRepository.findByEmail(loggedInEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (loggedInUser.getRole() == User.Role.RESPONDER &&
+                !responderEmail.equalsIgnoreCase(loggedInEmail)) {
+            throw new AccessDeniedException("You can only view your own contributions");
+        }
+
+        return contributionRepository.findByResponder_Email(responderEmail).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // --- Admin unrestricted ---
     public List<ContributionDTO> getByResponder(String responderEmail) {
         return contributionRepository.findByResponder_Email(responderEmail).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- Helper: map entity → DTO ---
+    // --- Helper ---
     private ContributionDTO mapToDTO(Contribution c) {
         ContributionDTO dto = new ContributionDTO();
         dto.setId(c.getId());
         dto.setContributedQuantity(c.getContributedQuantity());
         dto.setRequestId(c.getRequest().getId());
-        dto.setResponderEmail(c.getResponder().getEmail()); // email instead of id
+        dto.setResponderEmail(c.getResponder().getEmail());
         dto.setUpdatedAt(c.getUpdatedAt());
         return dto;
     }

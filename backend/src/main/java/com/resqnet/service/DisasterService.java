@@ -6,8 +6,11 @@ import com.resqnet.model.User;
 import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.UserRepository;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 
 @Service
@@ -27,18 +30,14 @@ public class DisasterService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // --- CREATE disaster from DTO ---
-    public DisasterDTO createDisaster(DisasterDTO dto) {
-        if (dto.getReporterEmail() == null) {
-            throw new RuntimeException("Reporter email is required to create a disaster report");
-        }
+    // --- CREATE disaster (uses authenticated reporter email instead of trusting DTO) ---
+    @Transactional
+    public DisasterDTO createDisaster(DisasterDTO dto, String reporterEmail) {
+        User reporter = userRepository.findByEmail(reporterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Reporter not found"));
 
-        User reporter = userRepository.findByEmail(dto.getReporterEmail())
-                .orElseThrow(() -> new RuntimeException("Reporter not found"));
-
-        // Only REPORTERS can create disasters
         if (reporter.getRole() != User.Role.REPORTER) {
-            throw new RuntimeException("Only REPORTER users can create disaster reports");
+            throw new AccessDeniedException("Only REPORTER users can create disaster reports");
         }
 
         Disaster disaster = new Disaster();
@@ -57,7 +56,7 @@ public class DisasterService {
                 saved.getId(),
                 saved.getType(),
                 saved.getSeverity(),
-                saved.getReporter() != null ? saved.getReporter().getEmail() : "anonymous"
+                reporter.getEmail()
         );
         kafkaTemplate.send(TOPIC, message);
 
@@ -75,13 +74,14 @@ public class DisasterService {
     public DisasterDTO getDisasterById(Long id) {
         return disasterRepository.findById(id)
                 .map(this::mapToDTO)
-                .orElseThrow(() -> new RuntimeException("Disaster not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
     }
 
     // --- UPDATE disaster (Admin use only) ---
+    @Transactional
     public DisasterDTO updateDisaster(DisasterDTO dto) {
         Disaster disaster = disasterRepository.findById(dto.getId())
-                .orElseThrow(() -> new RuntimeException("Disaster not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
 
         disaster.setType(dto.getType());
         disaster.setSeverity(dto.getSeverity());
@@ -91,6 +91,15 @@ public class DisasterService {
 
         Disaster updated = disasterRepository.save(disaster);
         return mapToDTO(updated);
+    }
+
+    // --- DELETE disaster (Admin use only) ---
+    @Transactional
+    public void deleteDisaster(Long id) {
+        if (!disasterRepository.existsById(id)) {
+            throw new EntityNotFoundException("Disaster not found");
+        }
+        disasterRepository.deleteById(id);
     }
 
     // --- Mapping helper ---

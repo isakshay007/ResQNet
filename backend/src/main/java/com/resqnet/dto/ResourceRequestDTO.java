@@ -1,5 +1,6 @@
 package com.resqnet.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.resqnet.model.ResourceRequest;
 import jakarta.validation.constraints.*;
 
@@ -9,6 +10,7 @@ public class ResourceRequestDTO {
     private Long id;
 
     @NotBlank(message = "Category is required")
+    @Size(max = 100, message = "Category must not exceed 100 characters")
     private String category;
 
     @Min(value = 1, message = "Requested quantity must be at least 1")
@@ -22,8 +24,8 @@ public class ResourceRequestDTO {
     @NotNull(message = "Disaster ID is required")
     private Long disasterId;
 
-    @NotBlank(message = "Reporter email is required")
-    @Email(message = "Reporter email must be valid")
+    // Make reporterEmail read-only → populated by backend only
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String reporterEmail;
 
     private LocalDateTime createdAt;

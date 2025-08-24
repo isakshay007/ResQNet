@@ -1,5 +1,7 @@
 package com.resqnet.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import jakarta.validation.constraints.*;
 
 public class DisasterDTO {
@@ -22,9 +24,9 @@ public class DisasterDTO {
     @DecimalMax(value = "180.0", message = "Longitude must be <= 180")
     private double longitude;
 
-    @NotBlank(message = "Reporter email is required")
-    @Email(message = "Reporter email must be valid")
-    private String reporterEmail; // instead of reporterId
+    // Only populated in responses, ignored in requests
+    @JsonProperty(access = Access.READ_ONLY)
+    private String reporterEmail;
 
     // --- Getters & Setters ---
     public Long getId() { return id; }

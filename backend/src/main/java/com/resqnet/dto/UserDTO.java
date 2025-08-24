@@ -1,23 +1,25 @@
 package com.resqnet.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import com.resqnet.model.User;
-import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 
 public class UserDTO {
+
+    @JsonProperty(access = Access.READ_ONLY) // id is only returned, never set by frontend
     private Long id;
 
-    @NotBlank(message = "Name is required")
     private String name;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
     private String email;
 
-    @NotNull(message = "Role is required")
     private User.Role role;
 
+    @JsonProperty(access = Access.READ_ONLY) // system-managed
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private LocalDateTime createdAt;
 
     // --- Getters & Setters ---

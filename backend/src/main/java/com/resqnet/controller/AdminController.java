@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "*") // Allow frontend access
+@CrossOrigin(origins = "*")
 public class AdminController {
 
     private final DisasterService disasterService;
@@ -53,6 +53,12 @@ public class AdminController {
         return disasterService.updateDisaster(dto);
     }
 
+    @DeleteMapping("/disasters/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteDisaster(@PathVariable Long id) {
+        disasterService.deleteDisaster(id);
+    }
+
     // ---------------- REQUESTS ----------------
     @GetMapping("/requests")
     @PreAuthorize("hasRole('ADMIN')")
@@ -65,6 +71,12 @@ public class AdminController {
     public ResourceRequestDTO updateRequest(@PathVariable Long id, @Valid @RequestBody ResourceRequestDTO dto) {
         dto.setId(id);
         return requestService.updateRequest(dto);
+    }
+
+    @DeleteMapping("/requests/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteRequest(@PathVariable Long id) {
+        requestService.deleteRequest(id);
     }
 
     // ---------------- USERS ----------------
@@ -99,13 +111,11 @@ public class AdminController {
     public Map<String, Object> getSummary() {
         Map<String, Object> summary = new HashMap<>();
 
-        // Totals
         summary.put("totalUsers", userService.getAllUsers().size());
         summary.put("totalDisasters", disasterService.getAllDisasters().size());
         summary.put("totalRequests", requestService.getAllRequests().size());
         summary.put("totalContributions", contributionService.getAllContributions().size());
 
-        // Status-based breakdown of requests
         Map<String, Long> requestStatusCounts = requestService.getAllRequests().stream()
                 .collect(Collectors.groupingBy(
                         r -> r.getStatus() != null ? r.getStatus().name() : "UNKNOWN",
@@ -113,7 +123,6 @@ public class AdminController {
                 ));
         summary.put("requestStatusCounts", requestStatusCounts);
 
-        // Role-based breakdown of users (exclude ADMIN)
         Map<String, Long> userRoleCounts = userService.getAllUsers().stream()
                 .filter(u -> u.getRole() != null && !u.getRole().name().equals("ADMIN"))
                 .collect(Collectors.groupingBy(

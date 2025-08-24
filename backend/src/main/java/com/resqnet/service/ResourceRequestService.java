@@ -7,8 +7,11 @@ import com.resqnet.model.User;
 import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.ResourceRequestRepository;
 import com.resqnet.repository.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 
 @Service
@@ -26,31 +29,25 @@ public class ResourceRequestService {
         this.userRepository = userRepository;
     }
 
-    // --- CREATE request from DTO ---
-    public ResourceRequestDTO createRequest(ResourceRequestDTO dto) {
-        if (dto.getReporterEmail() == null) {
-            throw new RuntimeException("Reporter email is required");
-        }
+    // --- CREATE request (Reporter only, email from Authentication) ---
+    @Transactional
+    public ResourceRequestDTO createRequest(ResourceRequestDTO dto, String reporterEmail) {
+        User reporter = userRepository.findByEmail(reporterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Reporter not found"));
 
-        User reporter = userRepository.findByEmail(dto.getReporterEmail())
-                .orElseThrow(() -> new RuntimeException("Reporter not found"));
-
-        // Only REPORTERS can create requests
         if (reporter.getRole() != User.Role.REPORTER) {
-            throw new RuntimeException("Only REPORTER users can create resource requests");
+            throw new AccessDeniedException("Only REPORTER users can create resource requests");
         }
 
         ResourceRequest request = new ResourceRequest();
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
-
-        // Always start with 0 fulfilled & PENDING
         request.setFulfilledQuantity(0);
         request.setStatus(ResourceRequest.Status.PENDING);
 
         if (dto.getDisasterId() != null) {
             Disaster disaster = disasterRepository.findById(dto.getDisasterId())
-                    .orElseThrow(() -> new RuntimeException("Disaster not found"));
+                    .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
             request.setDisaster(disaster);
         }
 
@@ -60,24 +57,44 @@ public class ResourceRequestService {
         return mapToDTO(saved);
     }
 
-    // --- READ all ---
+    // --- READ all (Admin/Responder only) ---
     public List<ResourceRequestDTO> getAllRequests() {
         return resourceRequestRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // --- READ one ---
+    // --- READ one (Admin/Responder) ---
     public ResourceRequestDTO getRequestById(Long id) {
         return resourceRequestRepository.findById(id)
                 .map(this::mapToDTO)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Request not found"));
+    }
+
+    // --- Reporter: READ all their own requests ---
+    public List<ResourceRequestDTO> getRequestsForReporter(String reporterEmail) {
+        return resourceRequestRepository.findByReporter_Email(reporterEmail).stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    // --- Reporter: READ one of their own requests ---
+    public ResourceRequestDTO getRequestByIdForReporter(Long id, String reporterEmail) {
+        ResourceRequest req = resourceRequestRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Request not found"));
+
+        if (!req.getReporter().getEmail().equalsIgnoreCase(reporterEmail)) {
+            throw new AccessDeniedException("You are not authorized to view this request");
+        }
+
+        return mapToDTO(req);
     }
 
     // --- UPDATE request (Admin only) ---
+    @Transactional
     public ResourceRequestDTO updateRequest(ResourceRequestDTO dto) {
         ResourceRequest request = resourceRequestRepository.findById(dto.getId())
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Request not found"));
 
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
@@ -86,7 +103,7 @@ public class ResourceRequestService {
 
         if (dto.getDisasterId() != null) {
             Disaster disaster = disasterRepository.findById(dto.getDisasterId())
-                    .orElseThrow(() -> new RuntimeException("Disaster not found"));
+                    .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
             request.setDisaster(disaster);
         }
 
@@ -94,6 +111,14 @@ public class ResourceRequestService {
         return mapToDTO(updated);
     }
 
+    // --- DELETE request (Admin only) ---
+    @Transactional
+    public void deleteRequest(Long id) {
+        if (!resourceRequestRepository.existsById(id)) {
+            throw new EntityNotFoundException("Resource Request not found");
+        }
+        resourceRequestRepository.deleteById(id);
+    }
 
     // --- Mapping helper ---
     private ResourceRequestDTO mapToDTO(ResourceRequest r) {

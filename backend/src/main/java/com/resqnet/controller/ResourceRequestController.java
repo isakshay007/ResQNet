@@ -4,6 +4,7 @@ import com.resqnet.dto.ResourceRequestDTO;
 import com.resqnet.service.ResourceRequestService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,11 +12,12 @@ import java.util.List;
 /**
  * REST controller for managing Resource Requests.
  * - Reporters can create requests linked to disasters.
- * - Frontend fetches requests for map display and dashboard use.
+ * - Reporters can only fetch their own requests.
+ * - Admin/Responders can fetch all requests for dashboard use.
  */
 @RestController
 @RequestMapping("/api/requests")
-@CrossOrigin(origins = "*") //  Allow frontend access
+@CrossOrigin(origins = "*") // Allow frontend access
 public class ResourceRequestController {
 
     private final ResourceRequestService service;
@@ -26,32 +28,41 @@ public class ResourceRequestController {
 
     /**
      * Create a new resource request (Reporter action).
-     *
-     * Only REPORTERs are allowed.
+     *  We no longer trust `reporterEmail` from the DTO.
+     * Always take reporter email from Authentication.
      */
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
-    public ResourceRequestDTO createRequest(@Valid @RequestBody ResourceRequestDTO dto) {
-        return service.createRequest(dto);
+    public ResourceRequestDTO createRequest(@Valid @RequestBody ResourceRequestDTO dto,
+                                            Authentication auth) {
+        return service.createRequest(dto, auth.getName());
     }
 
     /**
-     * Fetch all resource requests (for map/dashboard display).
-     *
-     * Open to all authenticated users (could restrict further if needed).
+     * Reporter: Fetch all of their own requests.
+     */
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('REPORTER')")
+    public List<ResourceRequestDTO> getMyRequests(Authentication auth) {
+        return service.getRequestsForReporter(auth.getName());
+    }
+
+    /**
+     * Reporter: Fetch a specific request by ID (only if owned).
+     * Restrict {id} to digits so it won't clash with "/my".
+     */
+    @GetMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasRole('REPORTER')")
+    public ResourceRequestDTO getMyRequestById(@PathVariable Long id, Authentication auth) {
+        return service.getRequestByIdForReporter(id, auth.getName());
+    }
+
+    /**
+     * Admin/Responder: Fetch all resource requests.
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RESPONDER')")
     public List<ResourceRequestDTO> getAllRequests() {
         return service.getAllRequests();
-    }
-
-    /**
-     * Fetch a specific request by ID.
-     *
-     * Open to all authenticated users.
-     */
-    @GetMapping("/{id}")
-    public ResourceRequestDTO getRequestById(@PathVariable Long id) {
-        return service.getRequestById(id);
     }
 }
