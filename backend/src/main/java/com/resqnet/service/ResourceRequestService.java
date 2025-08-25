@@ -1,17 +1,19 @@
 package com.resqnet.service;
 
+import com.resqnet.dto.NotificationDTO;
 import com.resqnet.dto.ResourceRequestDTO;
 import com.resqnet.model.Disaster;
 import com.resqnet.model.ResourceRequest;
 import com.resqnet.model.User;
+import com.resqnet.producer.NotificationProducer;
 import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.ResourceRequestRepository;
 import com.resqnet.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 
 @Service
@@ -20,16 +22,19 @@ public class ResourceRequestService {
     private final ResourceRequestRepository resourceRequestRepository;
     private final DisasterRepository disasterRepository;
     private final UserRepository userRepository;
+    private final NotificationProducer notificationProducer;
 
     public ResourceRequestService(ResourceRequestRepository resourceRequestRepository,
                                   DisasterRepository disasterRepository,
-                                  UserRepository userRepository) {
+                                  UserRepository userRepository,
+                                  NotificationProducer notificationProducer) {
         this.resourceRequestRepository = resourceRequestRepository;
         this.disasterRepository = disasterRepository;
         this.userRepository = userRepository;
+        this.notificationProducer = notificationProducer;
     }
 
-    // --- CREATE request (Reporter only, email from Authentication) ---
+    // --- CREATE request (Reporter only) ---
     @Transactional
     public ResourceRequestDTO createRequest(ResourceRequestDTO dto, String reporterEmail) {
         User reporter = userRepository.findByEmail(reporterEmail)
@@ -54,7 +59,12 @@ public class ResourceRequestService {
         request.setReporter(reporter);
 
         ResourceRequest saved = resourceRequestRepository.save(request);
-        return mapToDTO(saved);
+        ResourceRequestDTO response = mapToDTO(saved);
+
+        // Send Notifications
+        sendCreateRequestNotifications(saved);
+
+        return response;
     }
 
     // --- READ all (Admin/Responder only) ---
@@ -108,16 +118,23 @@ public class ResourceRequestService {
         }
 
         ResourceRequest updated = resourceRequestRepository.save(request);
+
+        // Send Notifications
+        sendUpdateRequestNotifications(updated);
+
         return mapToDTO(updated);
     }
 
     // --- DELETE request (Admin only) ---
     @Transactional
     public void deleteRequest(Long id) {
-        if (!resourceRequestRepository.existsById(id)) {
-            throw new EntityNotFoundException("Resource Request not found");
-        }
+        ResourceRequest req = resourceRequestRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Resource Request not found"));
+
         resourceRequestRepository.deleteById(id);
+
+        // Send Notifications
+        sendDeleteRequestNotifications(req);
     }
 
     // --- Mapping helper ---
@@ -132,5 +149,77 @@ public class ResourceRequestService {
         dto.setDisasterId(r.getDisaster() != null ? r.getDisaster().getId() : null);
         dto.setReporterEmail(r.getReporter() != null ? r.getReporter().getEmail() : null);
         return dto;
+    }
+
+    // --- Notification helpers ---
+    private void sendCreateRequestNotifications(ResourceRequest request) {
+        String reporterEmail = request.getReporter().getEmail();
+
+        // Reporter confirmation
+        NotificationDTO reporterNotif = new NotificationDTO();
+        reporterNotif.setRecipientEmail(reporterEmail);
+        reporterNotif.setMessage("✅ Your request for " + request.getRequestedQuantity() +
+                " units of " + request.getCategory() + " has been created.");
+        reporterNotif.setType("REQUEST");
+        reporterNotif.setDeletable(true);
+        notificationProducer.sendNotification(reporterNotif);
+
+        // Responder broadcast (for now just log to Admin — in real app, loop all responders)
+        NotificationDTO responderNotif = new NotificationDTO();
+        responderNotif.setRecipientEmail("responder@example.com");
+        responderNotif.setMessage("📢 New request for " + request.getCategory() +
+                " (" + request.getRequestedQuantity() + " units).");
+        responderNotif.setType("REQUEST_ALERT");
+        responderNotif.setDeletable(true);
+        notificationProducer.sendNotification(responderNotif);
+
+        // Admin log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setRecipientEmail("admin@example.com");
+        adminNotif.setMessage("📌 New request created by " + reporterEmail +
+                " for " + request.getCategory() + " (" + request.getRequestedQuantity() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        notificationProducer.sendNotification(adminNotif);
+    }
+
+    private void sendUpdateRequestNotifications(ResourceRequest request) {
+        String reporterEmail = request.getReporter().getEmail();
+
+        // Reporter notification
+        NotificationDTO reporterNotif = new NotificationDTO();
+        reporterNotif.setRecipientEmail(reporterEmail);
+        reporterNotif.setMessage("✏️ Your request #" + request.getId() + " has been updated by Admin.");
+        reporterNotif.setType("REQUEST_UPDATE");
+        reporterNotif.setDeletable(true);
+        notificationProducer.sendNotification(reporterNotif);
+
+        // Admin log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setRecipientEmail("admin@example.com");
+        adminNotif.setMessage("Request #" + request.getId() + " was updated.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        notificationProducer.sendNotification(adminNotif);
+    }
+
+    private void sendDeleteRequestNotifications(ResourceRequest request) {
+        String reporterEmail = request.getReporter().getEmail();
+
+        // Reporter notification
+        NotificationDTO reporterNotif = new NotificationDTO();
+        reporterNotif.setRecipientEmail(reporterEmail);
+        reporterNotif.setMessage(" Your request #" + request.getId() + " was deleted by Admin.");
+        reporterNotif.setType("REQUEST_DELETE");
+        reporterNotif.setDeletable(true);
+        notificationProducer.sendNotification(reporterNotif);
+
+        // Admin log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setRecipientEmail("admin@example.com");
+        adminNotif.setMessage("Request #" + request.getId() + " was deleted.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        notificationProducer.sendNotification(adminNotif);
     }
 }

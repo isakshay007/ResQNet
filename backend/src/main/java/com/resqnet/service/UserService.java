@@ -1,8 +1,10 @@
 package com.resqnet.service;
 
+import com.resqnet.dto.NotificationDTO;
 import com.resqnet.dto.UserCreateRequest;
 import com.resqnet.dto.UserDTO;
 import com.resqnet.model.User;
+import com.resqnet.producer.NotificationProducer;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,10 +18,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationProducer notificationProducer;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       NotificationProducer notificationProducer) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.notificationProducer = notificationProducer;
     }
 
     // --- Create a new user (REPORTER or RESPONDER only) ---
@@ -39,7 +45,13 @@ public class UserService {
         user.setRole(req.getRole());
         user.setPassword(passwordEncoder.encode(req.getPassword())); // secure hash
 
-        return mapToDTO(userRepository.save(user));
+        User saved = userRepository.save(user);
+        UserDTO dto = mapToDTO(saved);
+
+        // 🔹 Send Notifications
+        sendUserCreationNotifications(saved);
+
+        return dto;
     }
 
     // --- Get all users ---
@@ -72,10 +84,13 @@ public class UserService {
     // --- Delete user (Admin only) ---
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new EntityNotFoundException("User not found");
-        }
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        userRepository.delete(user);
+
+        //  Send Notifications
+        sendUserDeletionNotifications(user);
     }
 
     // --- Helper: map entity → DTO ---
@@ -87,5 +102,34 @@ public class UserService {
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
         return dto;
+    }
+
+    // --- Notification helpers ---
+    private void sendUserCreationNotifications(User user) {
+        // Welcome notification for the user
+        NotificationDTO welcomeNotif = new NotificationDTO();
+        welcomeNotif.setRecipientEmail(user.getEmail());
+        welcomeNotif.setMessage("🎉 Welcome " + user.getName() + "! Your account has been created.");
+        welcomeNotif.setType("WELCOME");
+        welcomeNotif.setDeletable(true);
+        notificationProducer.sendNotification(welcomeNotif);
+
+        // Admin log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setRecipientEmail("admin@example.com"); // 🔹 adjust for real admins
+        adminNotif.setMessage("👤 New user registered: " + user.getEmail() + " (" + user.getRole() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        notificationProducer.sendNotification(adminNotif);
+    }
+
+    private void sendUserDeletionNotifications(User user) {
+        // Admin log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setRecipientEmail("admin@example.com");
+        adminNotif.setMessage("🗑️ User deleted: " + user.getEmail() + " (" + user.getRole() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        notificationProducer.sendNotification(adminNotif);
     }
 }

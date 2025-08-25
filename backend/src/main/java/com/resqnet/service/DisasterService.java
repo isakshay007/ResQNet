@@ -1,16 +1,17 @@
 package com.resqnet.service;
 
 import com.resqnet.dto.DisasterDTO;
+import com.resqnet.dto.NotificationDTO;
 import com.resqnet.model.Disaster;
 import com.resqnet.model.User;
+import com.resqnet.producer.NotificationProducer;
 import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.UserRepository;
-import org.springframework.kafka.core.KafkaTemplate;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 
 @Service
@@ -18,19 +19,17 @@ public class DisasterService {
 
     private final DisasterRepository disasterRepository;
     private final UserRepository userRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-
-    private static final String TOPIC = "disaster-reports"; // Kafka topic name
+    private final NotificationProducer notificationProducer;
 
     public DisasterService(DisasterRepository disasterRepository,
                            UserRepository userRepository,
-                           KafkaTemplate<String, String> kafkaTemplate) {
+                           NotificationProducer notificationProducer) {
         this.disasterRepository = disasterRepository;
         this.userRepository = userRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.notificationProducer = notificationProducer;
     }
 
-    // --- CREATE disaster (uses authenticated reporter email instead of trusting DTO) ---
+    // --- CREATE disaster (only REPORTER) ---
     @Transactional
     public DisasterDTO createDisaster(DisasterDTO dto, String reporterEmail) {
         User reporter = userRepository.findByEmail(reporterEmail)
@@ -50,15 +49,40 @@ public class DisasterService {
 
         Disaster saved = disasterRepository.save(disaster);
 
-        // Publish to Kafka after saving
-        String message = String.format(
-                "New Disaster Reported: [id=%d, type=%s, severity=%s, reporter=%s]",
-                saved.getId(),
-                saved.getType(),
-                saved.getSeverity(),
-                reporter.getEmail()
-        );
-        kafkaTemplate.send(TOPIC, message);
+        // 🔹 Notifications
+        // Reporter confirmation
+        NotificationDTO reporterNotif = new NotificationDTO();
+        reporterNotif.setRecipientEmail(reporter.getEmail());
+        reporterNotif.setMessage("Your disaster report (" + saved.getType() + ") has been submitted.");
+        reporterNotif.setType("DISASTER_CONFIRMATION");
+        reporterNotif.setDeletable(true);
+        notificationProducer.sendNotification(reporterNotif);
+
+        // Admin log
+        userRepository.findAll().stream()
+                .filter(u -> u.getRole() == User.Role.ADMIN)
+                .forEach(admin -> {
+                    NotificationDTO adminNotif = new NotificationDTO();
+                    adminNotif.setRecipientEmail(admin.getEmail());
+                    adminNotif.setMessage("New disaster reported: " + saved.getType() +
+                            " (" + saved.getSeverity() + ") by " + reporter.getEmail());
+                    adminNotif.setType("ADMIN_LOG");
+                    adminNotif.setDeletable(false);
+                    notificationProducer.sendNotification(adminNotif);
+                });
+
+        // Responders alert
+        userRepository.findAll().stream()
+                .filter(u -> u.getRole() == User.Role.RESPONDER)
+                .forEach(responder -> {
+                    NotificationDTO responderNotif = new NotificationDTO();
+                    responderNotif.setRecipientEmail(responder.getEmail());
+                    responderNotif.setMessage("New disaster reported: " + saved.getType() +
+                            " (" + saved.getSeverity() + ")");
+                    responderNotif.setType("DISASTER_ALERT");
+                    responderNotif.setDeletable(true);
+                    notificationProducer.sendNotification(responderNotif);
+                });
 
         return mapToDTO(saved);
     }
@@ -77,7 +101,7 @@ public class DisasterService {
                 .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
     }
 
-    // --- UPDATE disaster (Admin use only) ---
+    // --- UPDATE disaster (Admin only) ---
     @Transactional
     public DisasterDTO updateDisaster(DisasterDTO dto) {
         Disaster disaster = disasterRepository.findById(dto.getId())
@@ -90,15 +114,36 @@ public class DisasterService {
         disaster.setLongitude(dto.getLongitude());
 
         Disaster updated = disasterRepository.save(disaster);
+
+        // Notify reporter
+        if (updated.getReporter() != null) {
+            NotificationDTO notif = new NotificationDTO();
+            notif.setRecipientEmail(updated.getReporter().getEmail());
+            notif.setMessage("Your disaster report (" + updated.getType() + ") was updated by Admin.");
+            notif.setType("DISASTER_UPDATE");
+            notif.setDeletable(true);
+            notificationProducer.sendNotification(notif);
+        }
+
         return mapToDTO(updated);
     }
 
-    // --- DELETE disaster (Admin use only) ---
+    // --- DELETE disaster (Admin only) ---
     @Transactional
     public void deleteDisaster(Long id) {
-        if (!disasterRepository.existsById(id)) {
-            throw new EntityNotFoundException("Disaster not found");
+        Disaster disaster = disasterRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
+
+        // Notify reporter before deletion
+        if (disaster.getReporter() != null) {
+            NotificationDTO notif = new NotificationDTO();
+            notif.setRecipientEmail(disaster.getReporter().getEmail());
+            notif.setMessage("Your disaster report (" + disaster.getType() + ") was deleted by Admin.");
+            notif.setType("DISASTER_DELETE");
+            notif.setDeletable(true);
+            notificationProducer.sendNotification(notif);
         }
+
         disasterRepository.deleteById(id);
     }
 
