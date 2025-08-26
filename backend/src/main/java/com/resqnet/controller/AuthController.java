@@ -2,8 +2,9 @@ package com.resqnet.controller;
 
 import com.resqnet.dto.UserCreateRequest;
 import com.resqnet.dto.LoginRequest;
+import com.resqnet.dto.UserDTO;
 import com.resqnet.model.User;
-import com.resqnet.repository.UserRepository;
+import com.resqnet.service.UserService;
 import com.resqnet.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,12 +18,12 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class AuthController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
-        this.userRepository = userRepository;
+    public AuthController(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+        this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
@@ -30,31 +31,24 @@ public class AuthController {
     // Register new user (Reporter/Responder only, not Admin)
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest dto) {
-        if (userRepository.existsByEmail(dto.getEmail())) {
-            return ResponseEntity.badRequest().body("Email already exists");
+        try {
+            if (dto.getRole() == User.Role.ADMIN) {
+                return ResponseEntity.badRequest().body("Admin accounts cannot be self-registered");
+            }
+
+            UserDTO saved = userService.createUser(dto);
+            return ResponseEntity.ok(saved);
+
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
-
-        //  Prevent self-registration as ADMIN
-        if (dto.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.badRequest().body("Admin accounts cannot be self-registered");
-        }
-
-        User user = new User();
-        user.setName(dto.getName());
-        user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword())); // hash password
-        user.setRole(dto.getRole());
-
-        userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully");
     }
 
-    // Login user (secure: always generic error messages)
+    // Login user
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest dto) {
-        User user = userRepository.findByEmail(dto.getEmail()).orElse(null);
+        User user = userService.findByEmail(dto.getEmail());
 
-        // Never leak if user doesn't exist → always generic error
         if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             return ResponseEntity.status(401).body("Invalid email or password");
         }

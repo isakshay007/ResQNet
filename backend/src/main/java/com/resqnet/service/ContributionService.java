@@ -38,7 +38,6 @@ public class ContributionService {
     // --- Create contribution (responderEmail comes from Authentication, not DTO) ---
     @Transactional
     public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
-        // Lock the ResourceRequest row to prevent race conditions
         ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
                 .orElseThrow(() -> new EntityNotFoundException("Resource Request not found"));
 
@@ -61,7 +60,11 @@ public class ContributionService {
         contribution.setRequest(request);
         contribution.setResponder(responder);
 
-        // Update request fulfillment safely
+        // ✅ Save responder’s location (from frontend)
+        contribution.setLatitude(dto.getLatitude());
+        contribution.setLongitude(dto.getLongitude());
+
+        // Update request fulfillment
         request.addFulfilledQuantity(dto.getContributedQuantity());
         if (request.getFulfilledQuantity() >= request.getRequestedQuantity()) {
             request.setStatus(ResourceRequest.Status.FULFILLED);
@@ -70,12 +73,10 @@ public class ContributionService {
         requestRepository.save(request);
         Contribution saved = contributionRepository.save(contribution);
 
-        ContributionDTO responseDto = mapToDTO(saved);
-
         // 🔹 Send Notifications
         sendContributionNotifications(saved);
 
-        return responseDto;
+        return mapToDTO(saved);
     }
 
     // --- Admin only ---
@@ -85,7 +86,6 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Admin unrestricted ---
     public List<ContributionDTO> getByRequest(Long requestId) {
         return contributionRepository.findByRequestId(requestId).stream()
                 .map(this::mapToDTO)
@@ -98,7 +98,6 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Reporter restricted / Responder & Admin unrestricted ---
     public List<ContributionDTO> getByRequestWithSecurity(Long requestId, String userEmail) {
         ResourceRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
@@ -116,7 +115,6 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Responder restricted (only own) / Admin unrestricted ---
     public List<ContributionDTO> getByResponderWithSecurity(String responderEmail, String loggedInEmail) {
         User loggedInUser = userRepository.findByEmail(loggedInEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
@@ -135,7 +133,6 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
-    // --- Admin: Delete contribution ---
     @Transactional
     public void deleteContribution(Long id) {
         Contribution contribution = contributionRepository.findById(id)
@@ -147,9 +144,11 @@ public class ContributionService {
         requestRepository.save(request);
 
         contributionRepository.delete(contribution);
+
+        sendContributionDeletionNotifications(contribution);
     }
 
-    // --- Send role-based notifications ---
+    // --- Send role-based notifications for creation ---
     private void sendContributionNotifications(Contribution contribution) {
         String reporterEmail = contribution.getRequest().getReporter().getEmail();
         String responderEmail = contribution.getResponder().getEmail();
@@ -158,18 +157,19 @@ public class ContributionService {
         int fulfilled = contribution.getRequest().getFulfilledQuantity();
         int requested = contribution.getRequest().getRequestedQuantity();
 
-        // Reporter notification (partial vs full)
+        // Reporter notification
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         if (fulfilled >= requested) {
             reporterNotif.setMessage("Your request #" + contribution.getRequest().getId()
                     + " has been fully fulfilled! 🎉 (+" + contributed + " units)");
+            reporterNotif.setType("CONTRIBUTION_FULFILLED");
         } else {
             reporterNotif.setMessage("Your request #" + contribution.getRequest().getId()
                     + " received a contribution of " + contributed + " units. Pending: "
                     + (requested - fulfilled));
+            reporterNotif.setType("CONTRIBUTION_PARTIAL");
         }
-        reporterNotif.setType("CONTRIBUTION");
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
@@ -182,14 +182,52 @@ public class ContributionService {
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
 
-        // Admin log (send to ALL admins in DB)
+        // Admin log
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.ADMIN)
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
                     adminNotif.setMessage("New contribution: " + contributed + " units by "
-                            + responderEmail + " to request #" + contribution.getRequest().getId());
+                            + responderEmail + " to request #" + contribution.getRequest().getId()
+                            + " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
+                    adminNotif.setType("ADMIN_LOG");
+                    adminNotif.setDeletable(false);
+                    notificationProducer.sendNotification(adminNotif);
+                });
+    }
+
+    private void sendContributionDeletionNotifications(Contribution contribution) {
+        String reporterEmail = contribution.getRequest().getReporter().getEmail();
+        String responderEmail = contribution.getResponder().getEmail();
+
+        // Reporter notification
+        NotificationDTO reporterNotif = new NotificationDTO();
+        reporterNotif.setRecipientEmail(reporterEmail);
+        reporterNotif.setMessage(" A contribution to your request #" + contribution.getRequest().getId()
+                + " was removed. Pending: " +
+                (contribution.getRequest().getRequestedQuantity() - contribution.getRequest().getFulfilledQuantity()));
+        reporterNotif.setType("CONTRIBUTION_DELETE");
+        reporterNotif.setDeletable(true);
+        notificationProducer.sendNotification(reporterNotif);
+
+        // Responder confirmation
+        NotificationDTO responderNotif = new NotificationDTO();
+        responderNotif.setRecipientEmail(responderEmail);
+        responderNotif.setMessage(" Your contribution of " + contribution.getContributedQuantity() +
+                " units to request #" + contribution.getRequest().getId() + " was deleted.");
+        responderNotif.setType("CONTRIBUTION_DELETE_CONFIRMATION");
+        responderNotif.setDeletable(true);
+        notificationProducer.sendNotification(responderNotif);
+
+        // Admin log
+        userRepository.findAll().stream()
+                .filter(u -> u.getRole() == User.Role.ADMIN)
+                .forEach(admin -> {
+                    NotificationDTO adminNotif = new NotificationDTO();
+                    adminNotif.setRecipientEmail(admin.getEmail());
+                    adminNotif.setMessage("Contribution by " + responderEmail + " to request #" +
+                            contribution.getRequest().getId() + " was deleted.");
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
                     notificationProducer.sendNotification(adminNotif);
@@ -204,6 +242,11 @@ public class ContributionService {
         dto.setRequestId(c.getRequest().getId());
         dto.setResponderEmail(c.getResponder().getEmail());
         dto.setUpdatedAt(c.getUpdatedAt());
+
+        // ✅ include location in response
+        dto.setLatitude(c.getLatitude());
+        dto.setLongitude(c.getLongitude());
+
         return dto;
     }
 }

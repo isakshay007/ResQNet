@@ -15,7 +15,11 @@ public class ContributionDTO {
     @NotNull(message = "Request ID is required")
     private Long requestId;
 
-    //  Read-only: filled by backend from Authentication
+    // 🔹 New fields for responder’s location
+    private Double latitude;   // responder latitude
+    private Double longitude;  // responder longitude
+
+    // Read-only: filled by backend from Authentication
     @JsonProperty(access = Access.READ_ONLY)
     private String responderEmail;
 
@@ -30,6 +34,12 @@ public class ContributionDTO {
 
     public Long getRequestId() { return requestId; }
     public void setRequestId(Long requestId) { this.requestId = requestId; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public String getResponderEmail() { return responderEmail; }
     public void setResponderEmail(String responderEmail) { this.responderEmail = responderEmail; }

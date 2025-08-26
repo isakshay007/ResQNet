@@ -26,6 +26,10 @@ public class Contribution {
     @OnDelete(action = OnDeleteAction.CASCADE) // DB-level cascade delete
     private User responder; // User with role RESPONDER
 
+    // 🔹 New fields for contribution location
+    private Double latitude;   // responder’s latitude
+    private Double longitude;  // responder’s longitude
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
@@ -41,6 +45,12 @@ public class Contribution {
 
     public User getResponder() { return responder; }
     public void setResponder(User responder) { this.responder = responder; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
