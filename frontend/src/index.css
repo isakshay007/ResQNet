@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 @keyframes gradient-x {
   0%, 100% {
     background-position: 0% 50%;
@@ -12,4 +13,23 @@
 .animate-gradient-x {
   background-size: 200% 200%;
   animation: gradient-x 4s ease infinite;
+}
+/* Remove default blue/gray Leaflet background */
+.leaflet-container {
+  background: transparent !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
 }
