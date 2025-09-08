@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.function.Function;
 
 @Component
 public class JwtUtil {
@@ -18,22 +19,25 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${jwt.secret}") String secret,
                    @Value("${jwt.expiration}") long expirationTime) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes()); // secure key
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 32 characters long.");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.EXPIRATION_TIME = expirationTime;
     }
 
-    // ✅ Generate token
+    //  Generate JWT token with email + role
     public String generateToken(String email, String role) {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key, SignatureAlgorithm.HS256) //  new API
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // ✅ Extract claims
+    //  Extract all claims
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -42,11 +46,28 @@ public class JwtUtil {
                 .getBody();
     }
 
+    //  Extract single claim using a function
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
     public String extractEmail(String token) {
-        return extractClaims(token).getSubject();
+        return extractClaim(token, Claims::getSubject);
     }
 
     public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    // Check if token expired
+    public boolean isTokenExpired(String token) {
+        return extractClaim(token, Claims::getExpiration).before(new Date());
+    }
+
+    //  Validate token (email + expiry check)
+    public boolean validateToken(String token, String email) {
+        final String extractedEmail = extractEmail(token);
+        return (extractedEmail.equalsIgnoreCase(email) && !isTokenExpired(token));
     }
 }

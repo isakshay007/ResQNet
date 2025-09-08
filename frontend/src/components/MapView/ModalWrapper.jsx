@@ -20,7 +20,7 @@ function ModalWrapper({ isOpen, onClose, children }) {
       aria-modal="true"
       role="dialog"
     >
-      {/* ✅ No dark backdrop, fully transparent */}
+      {/*  No dark backdrop, fully transparent */}
       {/* Modal box */}
       <div className="relative z-[1001] bg-white rounded-lg shadow-xl w-[400px] p-6 pointer-events-auto border border-gray-200">
         {children}

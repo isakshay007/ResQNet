@@ -24,7 +24,7 @@ function Register() {
     }
 
     try {
-      // ✅ Call correct backend endpoint for self-registration
+      //  Call correct backend endpoint for self-registration
       await api.post("/auth/register", { name, email, password, role });
 
       // Redirect to login after success

@@ -2,16 +2,14 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function ProtectedRoute({ children }) {
+function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
-    // 🚨 Not logged in → redirect to login
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ Logged in → show the protected page
   return children;
 }
 
-export default ProtectedRoute;
+export default PrivateRoute;

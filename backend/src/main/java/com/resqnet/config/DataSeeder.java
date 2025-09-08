@@ -13,7 +13,7 @@ public class DataSeeder {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${admin.default.password}") // inject from application.properties / .env
+    @Value("${admin.default.password}") 
     private String defaultPassword;
 
     public DataSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder) {
@@ -23,24 +23,32 @@ public class DataSeeder {
 
     @PostConstruct
     public void seedAdmin() {
-        String adminEmail = "admin@resqnet.com";
+        final String adminEmail = "admin@resqnet.com";
 
-        boolean adminExists = userRepository.findAll().stream()
-                .anyMatch(u -> u.getRole() == User.Role.ADMIN);
+        userRepository.findByEmail(adminEmail).ifPresentOrElse(
+            user -> {
+                // If user exists but not admin, upgrade role
+                if (user.getRole() != User.Role.ADMIN) {
+                    user.setRole(User.Role.ADMIN);
+                    userRepository.save(user);
+                    System.out.println("⚠ Existing user with " + adminEmail + " upgraded to ADMIN.");
+                } else {
+                    System.out.println("ℹ Admin already exists. Seeder skipped.");
+                }
+            },
+            () -> {
+                // Create new admin
+                User admin = new User();
+                admin.setName("System Admin");
+                admin.setEmail(adminEmail);
+                admin.setPassword(passwordEncoder.encode(defaultPassword)); // hash it
+                admin.setRole(User.Role.ADMIN);
 
-        if (!adminExists) {
-            User admin = new User();
-            admin.setName("System Admin");
-            admin.setEmail(adminEmail);
-            admin.setPassword(passwordEncoder.encode(defaultPassword)); //  hashed
-            admin.setRole(User.Role.ADMIN);
+                userRepository.save(admin);
 
-            userRepository.save(admin);
-
-            System.out.println(" Default admin account created: " + adminEmail);
-            System.out.println(" Please change the default password immediately after first login.");
-        } else {
-            System.out.println("ℹ Admin already exists. Seeder skipped.");
-        }
+                System.out.println(" Default admin account created: " + adminEmail);
+                System.out.println(" Please change the default password immediately after first login.");
+            }
+        );
     }
 }

@@ -14,7 +14,7 @@ public class NotificationConsumer {
         this.notificationService = notificationService;
     }
 
-    // 🔹 Consume notifications from Kafka and persist in DB
+    // Consume notifications from Kafka and persist in DB
     @KafkaListener(topics = "notifications", groupId = "resqnet-group",
                    containerFactory = "kafkaListenerContainerFactory")
     public void consumeNotification(NotificationDTO dto) {

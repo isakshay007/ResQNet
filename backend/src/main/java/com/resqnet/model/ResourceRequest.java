@@ -6,38 +6,47 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "resource_requests")
 public class ResourceRequest {
 
     public enum Status {
-        PENDING,
-        FULFILLED
+        PENDING,    // newly created, no contributions yet
+        PARTIAL,    // some contributions but not fulfilled
+        FULFILLED   // fully satisfied
     }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String category; // e.g. water, food, shelter, medical
+
+    @Column(nullable = false)
     private int requestedQuantity;
+
+    @Column(nullable = false)
     private int fulfilledQuantity = 0;
 
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "disaster_id", nullable = false)
     private Disaster disaster;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reporter_id", nullable = false)
     private User reporter;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @CreationTimestamp
+    @Column(updatable = false, nullable = false)
+    private LocalDateTime createdAt;
 
-    // 🔹 One ResourceRequest → Many Contributions
+    // One ResourceRequest → Many Contributions
     @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Contribution> contributions = new ArrayList<>();
@@ -51,6 +60,8 @@ public class ResourceRequest {
     public void updateStatus() {
         if (this.fulfilledQuantity >= this.requestedQuantity) {
             this.status = Status.FULFILLED;
+        } else if (this.fulfilledQuantity > 0) {
+            this.status = Status.PARTIAL;
         } else {
             this.status = Status.PENDING;
         }
@@ -69,7 +80,7 @@ public class ResourceRequest {
     public int getFulfilledQuantity() { return fulfilledQuantity; }
     public void setFulfilledQuantity(int fulfilledQuantity) {
         this.fulfilledQuantity = fulfilledQuantity;
-        updateStatus(); // always keep status consistent
+        updateStatus(); // keep status consistent
     }
 
     public Status getStatus() { return status; }
@@ -82,7 +93,6 @@ public class ResourceRequest {
     public void setReporter(User reporter) { this.reporter = reporter; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public List<Contribution> getContributions() { return contributions; }
     public void setContributions(List<Contribution> contributions) { this.contributions = contributions; }

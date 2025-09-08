@@ -3,20 +3,17 @@ package com.resqnet.controller;
 import com.resqnet.dto.DisasterDTO;
 import com.resqnet.service.DisasterService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
-/**
- * REST controller for managing Disasters.
- * Reporters can create disasters, and the frontend can fetch them
- * for global map display.
- */
 @RestController
 @RequestMapping("/api/disasters")
-@CrossOrigin(origins = "*") // Allow frontend access
+@CrossOrigin(origins = "*")
 public class DisasterController {
 
     private final DisasterService disasterService;
@@ -25,38 +22,42 @@ public class DisasterController {
         this.disasterService = disasterService;
     }
 
-    /**
-     * Create a new disaster report (Reporter action).
-     *
-     * Only REPORTERs are allowed to create.
-     *  We no longer trust `reporterEmail` from the DTO.
-     *  Instead, we always use the authenticated user (auth.getName()).
-     */
+    // --- Reporter actions ---
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
-    public DisasterDTO createDisaster(@Valid @RequestBody DisasterDTO dto, Authentication auth) {
-        return disasterService.createDisaster(dto, auth.getName());
+    public ResponseEntity<DisasterDTO> createDisaster(@Valid @RequestBody DisasterDTO dto,
+                                                      Authentication auth) {
+        DisasterDTO created = disasterService.createDisaster(dto, auth.getName());
+        return ResponseEntity.created(URI.create("/api/disasters/" + created.getId()))
+                             .body(created);
     }
 
-    /**
-     * Fetch all disasters (used for global map display).
-     *
-     * Open to all authenticated users.
-     */
+    // --- Common (Reporter, Responder, Admin) ---
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public List<DisasterDTO> getAllDisasters() {
         return disasterService.getAllDisasters();
     }
 
-    /**
-     * Fetch a specific disaster by ID.
-     *
-     * Open to all authenticated users.
-     */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public DisasterDTO getDisasterById(@PathVariable Long id) {
         return disasterService.getDisasterById(id);
+    }
+
+    // --- Admin actions ---
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public DisasterDTO updateDisaster(@PathVariable Long id,
+                                      @Valid @RequestBody DisasterDTO dto) {
+        dto.setId(id);
+        return disasterService.updateDisaster(dto);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteDisaster(@PathVariable Long id) {
+        disasterService.deleteDisaster(id);
+        return ResponseEntity.noContent().build();
     }
 }

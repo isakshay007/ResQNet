@@ -10,4 +10,4 @@ function WelcomeBanner({ user }) {
   );
 }
 
-export default WelcomeBanner;   // ✅ default export
+export default WelcomeBanner;   //  default export

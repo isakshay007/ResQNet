@@ -47,8 +47,7 @@ public class ResourceRequestService {
         ResourceRequest request = new ResourceRequest();
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
-        request.setFulfilledQuantity(0);
-        request.setStatus(ResourceRequest.Status.PENDING);
+        request.setFulfilledQuantity(0); // fresh requests always start unfulfilled
 
         if (dto.getDisasterId() != null) {
             Disaster disaster = disasterRepository.findById(dto.getDisasterId())
@@ -61,7 +60,6 @@ public class ResourceRequestService {
         ResourceRequest saved = resourceRequestRepository.save(request);
         ResourceRequestDTO response = mapToDTO(saved);
 
-        // Send Notifications
         sendCreateRequestNotifications(saved);
 
         return response;
@@ -109,7 +107,9 @@ public class ResourceRequestService {
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
         request.setFulfilledQuantity(dto.getFulfilledQuantity());
-        request.setStatus(dto.getStatus());
+
+        // auto-update status from fulfilled vs requested
+        request.updateStatus();
 
         if (dto.getDisasterId() != null) {
             Disaster disaster = disasterRepository.findById(dto.getDisasterId())
@@ -119,7 +119,6 @@ public class ResourceRequestService {
 
         ResourceRequest updated = resourceRequestRepository.save(request);
 
-        // Send Notifications
         sendUpdateRequestNotifications(updated);
 
         return mapToDTO(updated);
@@ -133,7 +132,6 @@ public class ResourceRequestService {
 
         resourceRequestRepository.deleteById(id);
 
-        // Send Notifications
         sendDeleteRequestNotifications(req);
     }
 
@@ -155,7 +153,6 @@ public class ResourceRequestService {
     private void sendCreateRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
-        // Reporter confirmation
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("Your request for " + request.getRequestedQuantity() +
@@ -164,7 +161,6 @@ public class ResourceRequestService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        //  Notify all responders
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.RESPONDER)
                 .forEach(responder -> {
@@ -177,7 +173,6 @@ public class ResourceRequestService {
                     notificationProducer.sendNotification(responderNotif);
                 });
 
-        //  Notify all admins
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.ADMIN)
                 .forEach(admin -> {
@@ -194,7 +189,6 @@ public class ResourceRequestService {
     private void sendUpdateRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
-        // Reporter notification
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("✏️ Your request #" + request.getId() + " has been updated by Admin.");
@@ -202,7 +196,6 @@ public class ResourceRequestService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        //  Notify all admins
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.ADMIN)
                 .forEach(admin -> {
@@ -218,7 +211,6 @@ public class ResourceRequestService {
     private void sendDeleteRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
-        // Reporter notification
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("Your request #" + request.getId() + " was deleted by Admin.");
@@ -226,7 +218,6 @@ public class ResourceRequestService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        // Notify all admins
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.ADMIN)
                 .forEach(admin -> {

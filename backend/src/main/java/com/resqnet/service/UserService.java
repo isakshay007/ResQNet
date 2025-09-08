@@ -45,10 +45,14 @@ public class UserService {
         user.setRole(req.getRole());
         user.setPassword(passwordEncoder.encode(req.getPassword())); // secure hash
 
+        //  Save permanent location if provided
+        user.setLatitude(req.getLatitude());
+        user.setLongitude(req.getLongitude());
+
         User saved = userRepository.save(user);
         UserDTO dto = mapToDTO(saved);
 
-        // 🔹 Send Notifications
+        // Send Notifications
         sendUserCreationNotifications(saved);
 
         return dto;
@@ -78,6 +82,10 @@ public class UserService {
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
 
+        // Allow updating permanent pin location
+        user.setLatitude(dto.getLatitude());
+        user.setLongitude(dto.getLongitude());
+
         return mapToDTO(userRepository.save(user));
     }
 
@@ -106,6 +114,11 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
+
+        //  Include permanent map location
+        dto.setLatitude(user.getLatitude());
+        dto.setLongitude(user.getLongitude());
+
         return dto;
     }
 

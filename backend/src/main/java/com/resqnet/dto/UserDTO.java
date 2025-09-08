@@ -22,19 +22,60 @@ public class UserDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private LocalDateTime createdAt;
 
+    //  Permanent map pin (reporter , responder )
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Double latitude;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Double longitude;
+
     // --- Getters & Setters ---
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public String getEmail() {
+        return email;
+    }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public User.Role getRole() { return role; }
-    public void setRole(User.Role role) { this.role = role; }
+    public User.Role getRole() {
+        return role;
+    }
+    public void setRole(User.Role role) {
+        this.role = role;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
 }

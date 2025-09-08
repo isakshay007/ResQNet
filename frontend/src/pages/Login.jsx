@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
-import { useAuth } from "../context/AuthContext"; // ✅ now using context instead of local hook
+import { useAuth } from "../context/AuthContext"; //  now using context instead of local hook
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -13,7 +13,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useAuth(); // ✅ shared global login from context
+  const { login } = useAuth(); //  shared global login from context
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,14 +21,14 @@ function Login() {
     setLoading(true);
 
     try {
-      // ✅ Call backend login API
+      //  Call backend login API
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data?.token) {
-        // ✅ Save JWT globally (AuthContext handles decoding)
+        //  Save JWT globally (AuthContext handles decoding)
         login(res.data.token);
 
-        // ✅ Redirect after success
+        //  Redirect after success
         navigate("/dashboard");
       } else {
         setError("Login failed. No token returned from server.");

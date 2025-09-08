@@ -1,11 +1,14 @@
 package com.resqnet.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import com.resqnet.model.ResourceRequest;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResourceRequestDTO {
     private Long id;
 
@@ -16,18 +19,23 @@ public class ResourceRequestDTO {
     @Min(value = 1, message = "Requested quantity must be at least 1")
     private int requestedQuantity;
 
-    @Min(value = 0, message = "Fulfilled quantity cannot be negative")
+    //  Controlled by backend only
+    @JsonProperty(access = Access.READ_ONLY)
     private int fulfilledQuantity;
 
+    //  Status is computed by backend
+    @JsonProperty(access = Access.READ_ONLY)
     private ResourceRequest.Status status;
 
     @NotNull(message = "Disaster ID is required")
     private Long disasterId;
 
-    // Make reporterEmail read-only → populated by backend only
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    //  Reporter info handled by backend
+    @JsonProperty(access = Access.READ_ONLY)
     private String reporterEmail;
 
+    //  Timestamp set by backend
+    @JsonProperty(access = Access.READ_ONLY)
     private LocalDateTime createdAt;
 
     // --- Getters & Setters ---

@@ -39,6 +39,12 @@ public class DisasterService {
             throw new AccessDeniedException("Only REPORTER users can create disaster reports");
         }
 
+        if (reporter.getLatitude() == null || reporter.getLongitude() == null) {
+            reporter.setLatitude(dto.getLatitude());
+            reporter.setLongitude(dto.getLongitude());
+            userRepository.save(reporter);
+        }
+
         Disaster disaster = new Disaster();
         disaster.setType(dto.getType());
         disaster.setSeverity(dto.getSeverity());
@@ -63,7 +69,7 @@ public class DisasterService {
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage(" New disaster reported: " + saved.getType() +
+                    adminNotif.setMessage("New disaster reported: " + saved.getType() +
                             " (" + saved.getSeverity() + ") by " + reporter.getEmail());
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
@@ -76,7 +82,7 @@ public class DisasterService {
                 .forEach(responder -> {
                     NotificationDTO responderNotif = new NotificationDTO();
                     responderNotif.setRecipientEmail(responder.getEmail());
-                    responderNotif.setMessage(" New disaster reported: " + saved.getType() +
+                    responderNotif.setMessage("New disaster reported: " + saved.getType() +
                             " (" + saved.getSeverity() + ")");
                     responderNotif.setType("DISASTER_ALERT");
                     responderNotif.setDeletable(true);
@@ -130,7 +136,8 @@ public class DisasterService {
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Disaster #" + updated.getId() + " (" + updated.getType() + ") was updated.");
+                    adminNotif.setMessage("Disaster #" + updated.getId() +
+                            " (" + updated.getType() + ") was updated.");
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
                     notificationProducer.sendNotification(adminNotif);
@@ -145,23 +152,22 @@ public class DisasterService {
         Disaster disaster = disasterRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
 
-        // Reporter notification
         if (disaster.getReporter() != null) {
             NotificationDTO notif = new NotificationDTO();
             notif.setRecipientEmail(disaster.getReporter().getEmail());
-            notif.setMessage(" Your disaster report (" + disaster.getType() + ") was deleted by Admin.");
+            notif.setMessage("Your disaster report (" + disaster.getType() + ") was deleted by Admin.");
             notif.setType("DISASTER_DELETE");
             notif.setDeletable(true);
             notificationProducer.sendNotification(notif);
         }
 
-        // Admin log
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.ADMIN)
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Disaster #" + disaster.getId() + " (" + disaster.getType() + ") was deleted.");
+                    adminNotif.setMessage("Disaster #" + disaster.getId() +
+                            " (" + disaster.getType() + ") was deleted.");
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
                     notificationProducer.sendNotification(adminNotif);
@@ -179,9 +185,32 @@ public class DisasterService {
         dto.setDescription(disaster.getDescription());
         dto.setLatitude(disaster.getLatitude());
         dto.setLongitude(disaster.getLongitude());
-        dto.setReporterEmail(
-                disaster.getReporter() != null ? disaster.getReporter().getEmail() : null
+        dto.setReporterEmail(disaster.getReporter() != null ? disaster.getReporter().getEmail() : null);
+        dto.setReporterName(disaster.getReporter() != null ? disaster.getReporter().getName() : null);
+        dto.setCreatedAt(disaster.getCreatedAt());
+
+        boolean allFulfilled = disaster.getRequests().stream()
+                .allMatch(r -> r.getStatus() == com.resqnet.model.ResourceRequest.Status.FULFILLED);
+        boolean anyFulfilled = disaster.getRequests().stream()
+                .anyMatch(r -> r.getFulfilledQuantity() > 0);
+
+        if (allFulfilled && !disaster.getRequests().isEmpty()) {
+            dto.setStatus("fulfilled");
+        } else if (anyFulfilled) {
+            dto.setStatus("partial");
+        } else {
+            dto.setStatus("reported");
+        }
+
+        dto.setContributions(
+                disaster.getRequests().stream()
+                        .filter(r -> r.getFulfilledQuantity() > 0)
+                        .map(com.resqnet.model.ResourceRequest::getCategory)
+                        .toList()
         );
+
         return dto;
     }
+
+    
 }

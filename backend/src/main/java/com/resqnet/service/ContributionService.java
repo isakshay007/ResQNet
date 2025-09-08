@@ -35,7 +35,7 @@ public class ContributionService {
         this.notificationProducer = notificationProducer;
     }
 
-    // --- Create contribution (responderEmail comes from Authentication, not DTO) ---
+    // --- Create contribution ---
     @Transactional
     public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
         ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
@@ -50,17 +50,23 @@ public class ContributionService {
 
         int pending = request.getRequestedQuantity() - request.getFulfilledQuantity();
         if (dto.getContributedQuantity() > pending) {
-            throw new IllegalArgumentException(
-                    "Contribution exceeds pending quantity. Pending: " + pending
-            );
+            throw new IllegalArgumentException("Contribution exceeds pending quantity. Pending: " + pending);
         }
 
         Contribution contribution = new Contribution();
         contribution.setContributedQuantity(dto.getContributedQuantity());
         contribution.setRequest(request);
         contribution.setResponder(responder);
+        contribution.setCategory(dto.getCategory());
 
-        // ✅ Save responder’s location (from frontend)
+        // Save responder’s permanent location if not already set
+        if (responder.getLatitude() == null || responder.getLongitude() == null) {
+            responder.setLatitude(dto.getLatitude());
+            responder.setLongitude(dto.getLongitude());
+            userRepository.save(responder);
+        }
+
+        // Always record location on contribution
         contribution.setLatitude(dto.getLatitude());
         contribution.setLongitude(dto.getLongitude());
 
@@ -73,7 +79,6 @@ public class ContributionService {
         requestRepository.save(request);
         Contribution saved = contributionRepository.save(contribution);
 
-        // 🔹 Send Notifications
         sendContributionNotifications(saved);
 
         return mapToDTO(saved);
@@ -98,6 +103,7 @@ public class ContributionService {
                 .collect(Collectors.toList());
     }
 
+    // --- Security filtering ---
     public List<ContributionDTO> getByRequestWithSecurity(Long requestId, String userEmail) {
         ResourceRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
@@ -148,7 +154,7 @@ public class ContributionService {
         sendContributionDeletionNotifications(contribution);
     }
 
-    // --- Send role-based notifications for creation ---
+    // --- Notifications ---
     private void sendContributionNotifications(Contribution contribution) {
         String reporterEmail = contribution.getRequest().getReporter().getEmail();
         String responderEmail = contribution.getResponder().getEmail();
@@ -162,22 +168,22 @@ public class ContributionService {
         reporterNotif.setRecipientEmail(reporterEmail);
         if (fulfilled >= requested) {
             reporterNotif.setMessage("Your request #" + contribution.getRequest().getId()
-                    + " has been fully fulfilled! 🎉 (+" + contributed + " units)");
+                    + " has been fully fulfilled! 🎉 (+" + contributed + " units of " + contribution.getCategory() + ")");
             reporterNotif.setType("CONTRIBUTION_FULFILLED");
         } else {
             reporterNotif.setMessage("Your request #" + contribution.getRequest().getId()
-                    + " received a contribution of " + contributed + " units. Pending: "
-                    + (requested - fulfilled));
+                    + " received " + contributed + " units of " + contribution.getCategory() +
+                    ". Pending: " + (requested - fulfilled));
             reporterNotif.setType("CONTRIBUTION_PARTIAL");
         }
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        // Responder confirmation
+        // Responder notification
         NotificationDTO responderNotif = new NotificationDTO();
         responderNotif.setRecipientEmail(responderEmail);
-        responderNotif.setMessage("You contributed " + contributed +
-                " units to request #" + contribution.getRequest().getId());
+        responderNotif.setMessage("You contributed " + contributed + " units of " +
+                contribution.getCategory() + " to request #" + contribution.getRequest().getId());
         responderNotif.setType("CONTRIBUTION_CONFIRMATION");
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
@@ -188,9 +194,10 @@ public class ContributionService {
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("New contribution: " + contributed + " units by "
-                            + responderEmail + " to request #" + contribution.getRequest().getId()
-                            + " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
+                    adminNotif.setMessage("New contribution: " + contributed + " units of " +
+                            contribution.getCategory() + " by " + responderEmail +
+                            " to request #" + contribution.getRequest().getId() +
+                            " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
                     notificationProducer.sendNotification(adminNotif);
@@ -201,21 +208,23 @@ public class ContributionService {
         String reporterEmail = contribution.getRequest().getReporter().getEmail();
         String responderEmail = contribution.getResponder().getEmail();
 
-        // Reporter notification
+        // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
-        reporterNotif.setMessage(" A contribution to your request #" + contribution.getRequest().getId()
-                + " was removed. Pending: " +
+        reporterNotif.setMessage("A contribution of " + contribution.getContributedQuantity() +
+                " units of " + contribution.getCategory() + " to your request #" +
+                contribution.getRequest().getId() + " was removed. Pending: " +
                 (contribution.getRequest().getRequestedQuantity() - contribution.getRequest().getFulfilledQuantity()));
         reporterNotif.setType("CONTRIBUTION_DELETE");
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        // Responder confirmation
+        // Responder
         NotificationDTO responderNotif = new NotificationDTO();
         responderNotif.setRecipientEmail(responderEmail);
-        responderNotif.setMessage(" Your contribution of " + contribution.getContributedQuantity() +
-                " units to request #" + contribution.getRequest().getId() + " was deleted.");
+        responderNotif.setMessage("Your contribution of " + contribution.getContributedQuantity() +
+                " units of " + contribution.getCategory() + " to request #" +
+                contribution.getRequest().getId() + " was deleted.");
         responderNotif.setType("CONTRIBUTION_DELETE_CONFIRMATION");
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
@@ -226,27 +235,26 @@ public class ContributionService {
                 .forEach(admin -> {
                     NotificationDTO adminNotif = new NotificationDTO();
                     adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Contribution by " + responderEmail + " to request #" +
-                            contribution.getRequest().getId() + " was deleted.");
+                    adminNotif.setMessage("Contribution of " + contribution.getContributedQuantity() +
+                            " units of " + contribution.getCategory() + " by " + responderEmail +
+                            " to request #" + contribution.getRequest().getId() + " was deleted.");
                     adminNotif.setType("ADMIN_LOG");
                     adminNotif.setDeletable(false);
                     notificationProducer.sendNotification(adminNotif);
                 });
     }
 
-    // --- Helper ---
+    // --- Mapper ---
     private ContributionDTO mapToDTO(Contribution c) {
         ContributionDTO dto = new ContributionDTO();
         dto.setId(c.getId());
         dto.setContributedQuantity(c.getContributedQuantity());
         dto.setRequestId(c.getRequest().getId());
+        dto.setCategory(c.getCategory());
         dto.setResponderEmail(c.getResponder().getEmail());
         dto.setUpdatedAt(c.getUpdatedAt());
-
-        // ✅ include location in response
         dto.setLatitude(c.getLatitude());
         dto.setLongitude(c.getLongitude());
-
         return dto;
     }
 }

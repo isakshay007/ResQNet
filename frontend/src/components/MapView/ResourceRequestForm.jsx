@@ -1,3 +1,4 @@
+// src/components/MapView/ResourceRequestForm.jsx
 import React, { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
@@ -5,16 +6,24 @@ import { useAuth } from "../../context/AuthContext";
 function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const form = new FormData(e.target);
+    setError("");
+    setSuccess("");
 
-    const data = {
-      category: form.get("category"),
-      requestedQuantity: parseInt(form.get("requestedQuantity"), 10),
-      disasterId,
-    };
+    const form = new FormData(e.target);
+    const category = form.get("category");
+    const requestedQuantity = parseInt(form.get("requestedQuantity"), 10);
+
+    if (!category || requestedQuantity <= 0) {
+      setError("Please fill all fields with valid values.");
+      return;
+    }
+
+    const data = { category, requestedQuantity, disasterId };
 
     try {
       setLoading(true);
@@ -25,18 +34,16 @@ function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
         },
       });
 
-      alert("✅ Resource request submitted successfully!");
-      console.log("✅ Resource request created:", res.data);
+      setSuccess("Resource request submitted successfully!");
+      if (onSuccess) onSuccess(res.data);
 
-      e.target.reset(); // clear form fields
-      onSuccess(res.data); // notify parent to refresh
+      e.target.reset(); // clear form
+      setTimeout(() => {
+        onClose();
+      }, 1200);
     } catch (err) {
-      console.error("❌ Failed to request resources:", err.response?.data || err.message);
-      alert(
-        `❌ Failed to submit resource request.\n${
-          err.response?.data?.message || err.message
-        }`
-      );
+      console.error("Failed to request resources:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Failed to submit resource request. Try again.");
     } finally {
       setLoading(false);
     }
@@ -51,10 +58,15 @@ function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
           type="button"
           onClick={onClose}
           className="text-gray-500 hover:text-gray-700 text-lg font-bold"
+          disabled={loading}
         >
           ✕
         </button>
       </div>
+
+      {/* Error / Success Messages */}
+      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+      {success && <p className="text-green-600 text-sm mb-2">{success}</p>}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">

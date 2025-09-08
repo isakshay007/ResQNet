@@ -1,23 +1,37 @@
-import React from "react";
+// src/components/MapView/ReportDisasterForm.jsx
+import React, { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 
 function ReportDisasterForm({ position, onSuccess, onClose }) {
   const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     const form = new FormData(e.target);
+    const type = form.get("type");
+    const severity = form.get("severity");
+    const description = form.get("description");
+
+    if (!type || !severity || !description) {
+      setError("All fields are required.");
+      return;
+    }
 
     const data = {
-      type: form.get("type"),
-      severity: form.get("severity"),
-      description: form.get("description"),
+      type,
+      severity,
+      description,
       latitude: position.lat,
       longitude: position.lng,
     };
 
     try {
+      setLoading(true);
       const res = await axios.post("http://localhost:8080/api/disasters", data, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -25,12 +39,17 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
         },
       });
 
-      alert("✅ Disaster reported successfully!");
-      console.log("✅ Disaster saved:", res.data);
-      onSuccess(res.data);
+      if (onSuccess) onSuccess(res.data);
+
+      e.target.reset(); // clear form
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     } catch (err) {
-      console.error("❌ Report failed:", err.response?.data || err.message);
-      alert("❌ Failed to report disaster. Please try again.");
+      console.error("Report failed:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Failed to report disaster. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,6 +63,8 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           Report Disaster
         </h2>
 
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+
         {/* Disaster Type */}
         <div>
           <label className="block text-gray-700 font-medium mb-1">
@@ -52,7 +73,6 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           <input
             name="type"
             placeholder="Flood, Fire, Earthquake..."
-            required
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           />
         </div>
@@ -64,7 +84,6 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           </label>
           <select
             name="severity"
-            required
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           >
             <option value="">Select Severity</option>
@@ -82,7 +101,6 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           <textarea
             name="description"
             placeholder="Describe the disaster in detail..."
-            required
             rows="4"
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           />
@@ -92,14 +110,20 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
         <div className="flex space-x-3 pt-2">
           <button
             type="submit"
-            className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700"
+            disabled={loading}
+            className={`flex-1 py-3 rounded-lg font-semibold text-white transition ${
+              loading
+                ? "bg-red-400 cursor-not-allowed"
+                : "bg-red-600 hover:bg-red-700"
+            }`}
           >
-            Submit
+            {loading ? "Submitting..." : "Submit"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-gray-500"
+            disabled={loading}
+            className="flex-1 bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-gray-500 disabled:opacity-60"
           >
             Cancel
           </button>

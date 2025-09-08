@@ -18,8 +18,8 @@ import java.util.List;
 public class User {
 
     public enum Role {
-        REPORTER,   // Victim / Citizen
-        RESPONDER,  // Volunteer / NGO
+        REPORTER,   // Victim / Citizen (green pin on map)
+        RESPONDER,  // Volunteer / NGO (blue pin on map)
         ADMIN       // Authority / Government
     }
 
@@ -44,8 +44,14 @@ public class User {
     @Column(updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
-    // --- Relationships ---
+    // ✅ Permanent map pin (set when the user registers / updates profile)
+    @Column
+    private Double latitude;
 
+    @Column
+    private Double longitude;
+
+    // --- Relationships ---
     // Reporter → Disasters
     @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
@@ -79,6 +85,12 @@ public class User {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public List<Disaster> getDisasters() { return disasters; }
     public void setDisasters(List<Disaster> disasters) { this.disasters = disasters; }
