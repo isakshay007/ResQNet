@@ -188,20 +188,16 @@ public class ContributionService {
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
 
-        // Admin log
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("New contribution: " + contributed + " units of " +
-                            contribution.getCategory() + " by " + responderEmail +
-                            " to request #" + contribution.getRequest().getId() +
-                            " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("New contribution: " + contributed + " units of " +
+                contribution.getCategory() + " by " + responderEmail +
+                " to request #" + contribution.getRequest().getId() +
+                " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true); //  one broadcast for all admins
+        notificationProducer.sendNotification(adminNotif);
     }
 
     private void sendContributionDeletionNotifications(Contribution contribution) {
@@ -229,19 +225,15 @@ public class ContributionService {
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
 
-        // Admin log
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Contribution of " + contribution.getContributedQuantity() +
-                            " units of " + contribution.getCategory() + " by " + responderEmail +
-                            " to request #" + contribution.getRequest().getId() + " was deleted.");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("Contribution of " + contribution.getContributedQuantity() +
+                " units of " + contribution.getCategory() + " by " + responderEmail +
+                " to request #" + contribution.getRequest().getId() + " was deleted.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 
     // --- Mapper ---

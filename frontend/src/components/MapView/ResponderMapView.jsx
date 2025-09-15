@@ -5,63 +5,29 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Tooltip,
   useMap,
 } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
-import ModalWrapper from "./ModalWrapper";
+import ModalWrapper from "./ModalWrapper.jsx";
 import ContributionForm from "./ContributionForm";
+import {
+  getDisasterIcon,
+  responderIcon,
+  responderLocationIcon,
+} from "./mapIcons.js";
+import MapLegend from "./MapLegend";
 
-//  Emoji map for request categories
-const emojiMap = {
-  food: "🍞",
-  water: "💧",
-  medical: "🏥",
-  shelter: "⛺",
+// Map severity → gradient
+const severityGradient = {
+  HIGH: "from-red-600 to-purple-600",
+  MEDIUM: "from-orange-500 to-yellow-500",
+  LOW: "from-green-500 to-teal-500",
 };
 
-//  Disaster icon (changes with fulfillment + emoji overlays)
-function getDisasterIcon(status, contributions = []) {
-  let colorUrl = "https://maps.google.com/mapfiles/ms/icons/red-dot.png"; // default 🔴
-
-  if (status === "partial") {
-    colorUrl = "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"; // 🟠
-  } else if (status === "fulfilled") {
-    colorUrl = "https://maps.google.com/mapfiles/ms/icons/green-dot.png"; // 🟢
-  }
-
-  // Emojis disappear when fulfilled
-  const uniqueContributions =
-    status === "fulfilled" ? [] : [...new Set(contributions.map((c) => c.toLowerCase()))];
-
-  // Stack emojis vertically under the pin
-  const displayEmojis = uniqueContributions
-    .map((c) => `<div>${emojiMap[c] || ""}</div>`)
-    .join("");
-
-  return L.divIcon({
-    className: "custom-disaster-icon",
-    html: `
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <img src="${colorUrl}" style="width:32px;height:32px;" />
-        <div style="font-size:14px; margin-top:2px;">${displayEmojis}</div>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-  });
-}
-
-//  Responder icon (blue, current user)
-const responderIcon = L.icon({
-  iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-});
-
-//  Current location marker (responder only)
+// Current location marker
 function CurrentLocation({ setCurrentLocation }) {
   const map = useMap();
   useEffect(() => {
@@ -82,6 +48,9 @@ function ResponderMapView() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [contributionModal, setContributionModal] = useState(null);
 
+  const [showAllRequests, setShowAllRequests] = useState({});
+  const [showAllContribs, setShowAllContribs] = useState({});
+
   // === API Calls ===
   const fetchDisasters = async () => {
     try {
@@ -101,7 +70,7 @@ function ResponderMapView() {
       });
       setRequests(res.data);
     } catch (err) {
-      console.error(" Failed to fetch requests:", err);
+      console.error("Failed to fetch requests:", err);
     }
   };
 
@@ -113,7 +82,7 @@ function ResponderMapView() {
       );
       return res.data;
     } catch (err) {
-      console.error(` Failed to fetch contributions for request ${requestId}:`, err);
+      console.error(`Failed to fetch contributions for request ${requestId}:`, err);
       return [];
     }
   };
@@ -150,11 +119,36 @@ function ResponderMapView() {
       return req && req.disasterId === disasterId;
     });
 
+  // === Group contributions (responder+location) ===
+  const groupedContributions = Object.values(
+    contributions.reduce((acc, c) => {
+      const key = `${c.responderEmail}-${c.latitude}-${c.longitude}`;
+      if (!acc[key]) {
+        acc[key] = {
+          responderEmail: c.responderEmail,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          categories: [c.category],
+          totalQuantity: c.contributedQuantity,
+          updatedAt: c.updatedAt,
+        };
+      } else {
+        acc[key].categories.push(c.category);
+        acc[key].totalQuantity += c.contributedQuantity;
+        acc[key].updatedAt =
+          new Date(c.updatedAt) > new Date(acc[key].updatedAt)
+            ? c.updatedAt
+            : acc[key].updatedAt;
+      }
+      return acc;
+    }, {})
+  );
+
   return (
     <div className="relative w-full h-full">
       <MapContainer
-        center={[20.5937, 78.9629]}
-        zoom={5}
+        center={[42.34, -71.0895]}
+        zoom={14}
         scrollWheelZoom
         className="w-full h-full"
       >
@@ -165,39 +159,101 @@ function ResponderMapView() {
 
         <CurrentLocation setCurrentLocation={setCurrentLocation} />
 
-        {/*  Show my current location */}
+        {/* My current location */}
         {currentLocation && (
-          <Marker position={currentLocation} icon={responderIcon}>
+          <Marker
+            position={currentLocation}
+            icon={responderLocationIcon}
+            zIndexOffset={1000}
+          >
+            <Tooltip direction="top">📍 My Location (Responder – Blue)</Tooltip>
             <Popup>You are here (Responder)</Popup>
           </Marker>
         )}
 
-        {/*  Disasters */}
+        {/* Grouped contribution pins */}
+        {groupedContributions.map(
+          (c, idx) =>
+            c.latitude &&
+            c.longitude && (
+              <Marker
+                key={`contrib-${idx}`}
+                position={[c.latitude, c.longitude]}
+                icon={responderIcon}
+              >
+                <Tooltip direction="top">🤝 Contribution Location</Tooltip>
+                <Popup>
+                  <div className="p-2 space-y-1">
+                    <h4 className="font-bold text-blue-600">
+                      Responder Contribution
+                    </h4>
+                    <p className="text-sm">
+                      <strong>Contributor:</strong> {c.responderEmail}
+                    </p>
+                    <p className="text-sm">
+                      <strong>Categories:</strong> {c.categories.join(", ")}
+                    </p>
+                    <p className="text-sm">
+                      <strong>Total Quantity:</strong> {c.totalQuantity}
+                    </p>
+                    {c.updatedAt && (
+                      <p className="text-xs text-gray-500">
+                        {new Date(c.updatedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            )
+        )}
+
+        {/* Disaster pins */}
         {disasters.map((d) => {
           const disasterRequests = getRequestsForDisaster(d.id);
           const disasterContributions = getContributionsForDisaster(d.id);
 
           const status =
-            disasterRequests.every((r) => r.status === "FULFILLED")
-              ? "fulfilled"
-              : disasterRequests.some((r) => r.fulfilledQuantity > 0)
-              ? "partial"
+            disasterRequests.length > 0
+              ? disasterRequests.every((r) => r.status === "FULFILLED")
+                ? "fulfilled"
+                : disasterRequests.some((r) => r.fulfilledQuantity > 0)
+                ? "partial"
+                : "reported"
               : "reported";
 
-          // ✅ use contributions, not requests
-          const contributionsSummary = disasterContributions.map((c) => c.category);
+          const visibleRequests = showAllRequests[d.id]
+            ? disasterRequests
+            : disasterRequests.slice(0, 3);
+          const visibleContribs = showAllContribs[d.id]
+            ? disasterContributions
+            : disasterContributions.slice(0, 3);
 
           return (
             <Marker
               key={d.id}
               position={[d.latitude, d.longitude]}
-              icon={getDisasterIcon(status, contributionsSummary)}
+              icon={getDisasterIcon(status)}
             >
+              <Tooltip direction="top">
+                {status === "reported" && "⚠️ Reported Disaster"}
+                {status === "partial" && "🟠 Partial Fulfillment"}
+                {status === "fulfilled" && "✅ Fulfilled Disaster"}
+              </Tooltip>
               <Popup minWidth={420} maxWidth={500}>
-                <div className="space-y-2 text-sm">
-                  <h3 className="font-bold text-lg text-red-600">
-                    {d.type} {d.severity && `(${d.severity})`}
-                  </h3>
+                <div className="space-y-4 text-sm">
+                  {/* Gradient Header */}
+                  <div
+                    className={`bg-gradient-to-r ${
+                      severityGradient[d.severity?.toUpperCase()] ||
+                      "from-gray-500 to-blue-600"
+                    } text-white px-4 py-2 rounded-lg shadow`}
+                  >
+                    <h3 className="font-bold text-base break-words">
+                      {d.type} ({d.severity?.toUpperCase()})
+                    </h3>
+                  </div>
+
+                  {/* Details */}
                   <p>
                     <strong>Description:</strong> {d.description}
                   </p>
@@ -210,31 +266,113 @@ function ResponderMapView() {
                     </p>
                   )}
 
-                  <h4 className="mt-2 font-semibold">Requests</h4>
-                  <ul className="list-disc pl-5">
-                    {disasterRequests.map((r) => (
-                      <li key={r.id}>
-                        {r.category} – {r.fulfilledQuantity}/{r.requestedQuantity} ({r.status})
-                        {status !== "fulfilled" && (
-                          <button
-                            onClick={() => setContributionModal({ requestId: r.id })}
-                            className="ml-2 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                          >
-                            Contribute
-                          </button>
+                  {/* Requests */}
+                  <div>
+                    <h4 className="font-semibold">Requests</h4>
+                    {disasterRequests.length > 0 ? (
+                      <>
+                        <ul className="space-y-2 mt-2">
+                          {visibleRequests.map((r) => (
+                            <li
+                              key={r.id}
+                              className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded-lg border shadow-sm"
+                            >
+                              <span className="font-medium capitalize">
+                                {r.category} – {r.fulfilledQuantity}/
+                                {r.requestedQuantity}
+                              </span>
+                              <span
+                                className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold border ${
+                                  r.status === "FULFILLED"
+                                    ? "bg-green-100 text-green-700 border-green-300"
+                                    : r.status === "PARTIAL"
+                                    ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+                                    : "bg-red-100 text-red-700 border-red-300"
+                                }`}
+                              >
+                                {r.status}
+                              </span>
+                              {r.status !== "FULFILLED" && (
+                                <button
+                                  onClick={() =>
+                                    setContributionModal({
+                                      requestId: r.id,
+                                      requestCategory: r.category,
+                                    })
+                                  }
+                                  className="ml-3 px-3 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                                >
+                                  Contribute
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        {disasterRequests.length > 3 && (
+                          <div className="text-right mt-1">
+                            <button
+                              onClick={() =>
+                                setShowAllRequests((prev) => ({
+                                  ...prev,
+                                  [d.id]: !prev[d.id],
+                                }))
+                              }
+                              className="text-blue-600 text-xs hover:underline"
+                            >
+                              {showAllRequests[d.id]
+                                ? "Show Less"
+                                : `${disasterRequests.length - 3} more +`}
+                            </button>
+                          </div>
                         )}
-                      </li>
-                    ))}
-                  </ul>
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic mt-1">None</p>
+                    )}
+                  </div>
 
-                  <h4 className="mt-2 font-semibold">Contributions</h4>
-                  <ul className="list-disc pl-5">
-                    {disasterContributions.map((c) => (
-                      <li key={c.id}>
-                        {c.responderEmail}: {c.contributedQuantity} ({c.category})
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Contributions */}
+                  <div>
+                    <h4 className="font-semibold">Contributions</h4>
+                    {disasterContributions.length > 0 ? (
+                      <>
+                        <ul className="space-y-2 mt-2">
+                          {visibleContribs.map((c) => (
+                            <li
+                              key={c.id}
+                              className="px-3 py-2 bg-gray-50 rounded-lg border text-xs flex justify-between items-center shadow-sm"
+                            >
+                              <span className="font-medium break-words">
+                                {c.responderEmail}
+                              </span>
+                              <span className="text-gray-700">
+                                {c.contributedQuantity} ({c.category})
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        {disasterContributions.length > 3 && (
+                          <div className="text-right mt-1">
+                            <button
+                              onClick={() =>
+                                setShowAllContribs((prev) => ({
+                                  ...prev,
+                                  [d.id]: !prev[d.id],
+                                }))
+                              }
+                              className="text-blue-600 text-xs hover:underline"
+                            >
+                              {showAllContribs[d.id]
+                                ? "Show Less"
+                                : `${disasterContributions.length - 3} more +`}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic mt-1">None</p>
+                    )}
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -242,39 +380,16 @@ function ResponderMapView() {
         })}
       </MapContainer>
 
-      {/*  Legend */}
-      <div className="absolute bottom-16 right-4 bg-white/90 backdrop-blur-sm 
-                      border border-gray-300 rounded-md shadow-sm 
-                      p-3 text-xs z-[1000] w-64">
-        <h4 className="font-semibold text-gray-600 text-center mb-2">Map Legend</h4>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" className="w-3.5 h-3.5" />
-            <span>Disaster 🔴</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <img src="https://maps.google.com/mapfiles/ms/icons/orange-dot.png" className="w-3.5 h-3.5" />
-            <span>Partial 🟠</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" className="w-3.5 h-3.5" />
-            <span>Fulfilled 🟢</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3.5 h-3.5 rounded-full bg-blue-500 inline-block"></span>
-            <span>My Location (Responder)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>🍞💧🏥⛺</span>
-            <span>Contributions</span>
-          </div>
-        </div>
-      </div>
+      <MapLegend role="responder" />
 
-      {/*  Contribution modal */}
-      <ModalWrapper isOpen={!!contributionModal} onClose={() => setContributionModal(null)}>
+      {/* Contribution Modal */}
+      <ModalWrapper
+        isOpen={!!contributionModal}
+        onClose={() => setContributionModal(null)}
+      >
         <ContributionForm
           requestId={contributionModal?.requestId}
+          requestCategory={contributionModal?.requestCategory}
           onSuccess={() => {
             setContributionModal(null);
             fetchAllContributions();

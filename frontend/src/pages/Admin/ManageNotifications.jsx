@@ -1,63 +1,63 @@
-// src/pages/Notifications.jsx
+// src/pages/Admin/ManageNotifications.jsx
 import React, { useEffect, useState } from "react";
-import api from "../utils/api"; // axios wrapper
-import Navbar from "../components/Navbar/Navbar";
-import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import api from "../../utils/api";
+import AdminNavbar from "../../components/Navbar/AdminNavbar";
+import Footer from "../../components/Footer";
+import { useAuth } from "../../context/AuthContext";
 import { FiAlertCircle, FiBell, FiInfo } from "react-icons/fi";
 
-function Notifications() {
-  const { token } = useAuth();
+function ManageNotifications() {
+  const navigate = useNavigate();
+  const { token, user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch all notifications for logged-in user
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get("/notifications");
-      setNotifications(res.data);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-    } finally {
+  // fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/admin/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setNotifications(res.data);
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err.response || err);
+        setError(
+          err.response?.data?.message || "Could not load notifications."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token && user?.role === "ADMIN") {
+      fetchNotifications();
+    } else {
+      setError("You must be logged in as an admin to view notifications.");
       setLoading(false);
     }
-  };
+  }, [token, user]);
 
-  const markAsRead = async (id) => {
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
     try {
-      await api.put(`/notifications/${id}/read`);
-      fetchNotifications();
-    } catch (err) {
-      console.error("Failed to mark as read:", err);
-    }
-  };
-
-  const deleteNotification = async (id) => {
-    try {
-      await api.delete(`/notifications/${id}`);
-      fetchNotifications();
+      await api.delete(`/admin/notifications/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch (err) {
       console.error("Failed to delete notification:", err);
+      alert("Error deleting notification.");
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      fetchNotifications();
-
-      // auto-refresh every 60s
-      const interval = setInterval(fetchNotifications, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [token]);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  // Pick icon based on type
+  // pick icon
   const getIcon = (type) => {
     switch (type?.toLowerCase()) {
       case "alert":
@@ -69,7 +69,7 @@ function Notifications() {
     }
   };
 
-  // pagination calculations
+  // pagination calc
   const totalPages = Math.ceil(notifications.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = notifications.slice(
@@ -83,35 +83,44 @@ function Notifications() {
                  bg-gradient-to-br from-teal-400 via-cyan-400 to-blue-500 
                  text-white animate-gradient-x"
     >
-      <Navbar active="notifications" notificationCount={unreadCount} />
+      <AdminNavbar />
 
       <main className="flex-1 px-6 py-8">
         <div className="bg-white/95 text-gray-900 rounded-2xl shadow-lg p-6 animate-fadeIn">
-          <h2
-            className="text-3xl font-extrabold mb-6 
-                       bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 
-                       bg-clip-text text-transparent"
-          >
-            Notifications
-          </h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2
+              className="text-3xl font-extrabold 
+                         bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 
+                         bg-clip-text text-transparent"
+            >
+              Manage Notifications
+            </h2>
+            <button
+              onClick={() => navigate("/admin/dashboard")}
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+            >
+              ← Go Back
+            </button>
+          </div>
 
-          {loading ? (
-            <p className="text-gray-600">Loading...</p>
-          ) : notifications.length === 0 ? (
+          {loading && <p className="text-gray-600">Loading notifications...</p>}
+          {error && <p className="text-red-600">{error}</p>}
+
+          {!loading && !error && notifications.length === 0 && (
             <div className="flex flex-col items-center text-gray-500 py-12">
               <FiBell size={40} className="mb-3 text-teal-500" />
-              <p className="text-lg font-medium">You’re all caught up!</p>
-              <p className="text-sm">No new notifications right now.</p>
+              <p className="text-lg font-medium">No notifications yet</p>
+              <p className="text-sm">New updates will appear here.</p>
             </div>
-          ) : (
+          )}
+
+          {!loading && notifications.length > 0 && (
             <>
               <ul className="space-y-4">
                 {currentItems.map((n) => (
                   <li
                     key={n.id}
-                    className={`p-4 rounded-lg border shadow-sm transition flex items-start gap-3 ${
-                      n.read ? "bg-gray-100" : "bg-teal-50 border-teal-200"
-                    } hover:shadow-md`}
+                    className="p-4 rounded-lg border shadow-sm transition flex items-start gap-3 bg-gray-50 hover:bg-teal-50"
                   >
                     {/* Icon */}
                     <div className="mt-1">{getIcon(n.type)}</div>
@@ -119,17 +128,8 @@ function Notifications() {
                     {/* Content */}
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <span
-                          className={`font-semibold ${
-                            n.read ? "text-gray-700" : "text-teal-700"
-                          }`}
-                        >
+                        <span className="font-semibold text-teal-700">
                           {n.type || "System"}
-                          {!n.read && (
-                            <span className="ml-2 px-2 py-0.5 text-xs bg-teal-600 text-white rounded-full">
-                              New
-                            </span>
-                          )}
                         </span>
                         <span className="text-xs text-gray-500">
                           {n.createdAt
@@ -144,22 +144,12 @@ function Notifications() {
 
                       {/* Actions */}
                       <div className="flex space-x-3 mt-3">
-                        {!n.read && (
-                          <button
-                            onClick={() => markAsRead(n.id)}
-                            className="px-3 py-1 bg-teal-500 text-white rounded hover:bg-teal-600 text-xs font-medium"
-                          >
-                            Mark as Read
-                          </button>
-                        )}
-                        {n.deletable && (
-                          <button
-                            onClick={() => deleteNotification(n.id)}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs font-medium"
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDelete(n.id)}
+                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs font-medium"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -216,4 +206,4 @@ function Notifications() {
   );
 }
 
-export default Notifications;
+export default ManageNotifications;

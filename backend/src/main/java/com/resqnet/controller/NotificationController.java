@@ -19,7 +19,7 @@ public class NotificationController {
         this.service = service;
     }
 
-    //  Get all notifications for logged-in user
+    //  Get all notifications (personal + broadcasts if admin)
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public List<NotificationDTO> getNotifications(Authentication auth) {
@@ -33,17 +33,17 @@ public class NotificationController {
         return service.getUnreadNotifications(auth.getName());
     }
 
-    // Mark a notification as read
+    //  Mark a notification as read
     @PutMapping("/{id}/read")
     @PreAuthorize("isAuthenticated()")
     public void markAsRead(@PathVariable Long id, Authentication auth) {
         service.markAsRead(id, auth.getName());
     }
 
-    //  Delete a notification (only if deletable)
+    //  Delete a user-owned notification
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public void deleteNotification(@PathVariable Long id, Authentication auth) {
-        service.deleteNotification(id, auth.getName());
+        service.deleteNotification(id, auth.getName(), false); // normal user delete, no override
     }
 }

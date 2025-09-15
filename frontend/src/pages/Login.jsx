@@ -1,9 +1,8 @@
-// src/pages/Login.jsx
 import React, { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
-import { useAuth } from "../context/AuthContext"; //  now using context instead of local hook
+import { useAuth } from "../context/AuthContext"; // shared global login
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -13,7 +12,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useAuth(); //  shared global login from context
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,15 +20,18 @@ function Login() {
     setLoading(true);
 
     try {
-      //  Call backend login API
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data?.token) {
-        //  Save JWT globally (AuthContext handles decoding)
-        login(res.data.token);
+        // Save JWT globally (AuthContext handles decoding user info incl. role)
+        const user = login(res.data.token);
 
-        //  Redirect after success
-        navigate("/dashboard");
+        // Role-based redirect
+        if (user?.role === "ADMIN") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         setError("Login failed. No token returned from server.");
       }
@@ -121,7 +123,8 @@ function Login() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-gray-700"
               >
-                {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                {/*  Fixed: Eye when visible, EyeOff when hidden */}
+                {showPassword ? <FiEye size={20} /> : <FiEyeOff size={20} />}
               </button>
             </div>
           </div>
@@ -133,7 +136,11 @@ function Login() {
             className={`w-full py-3 text-lg font-semibold rounded-lg 
                        bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white
                        transition-all shadow-md
-                       ${loading ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.03] hover:shadow-2xl"}`}
+                       ${
+                         loading
+                           ? "opacity-60 cursor-not-allowed"
+                           : "hover:scale-[1.03] hover:shadow-2xl"
+                       }`}
           >
             {loading ? "Logging in..." : "Login"}
           </button>

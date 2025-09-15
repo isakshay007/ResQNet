@@ -47,7 +47,7 @@ public class ResourceRequestService {
         ResourceRequest request = new ResourceRequest();
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
-        request.setFulfilledQuantity(0); // fresh requests always start unfulfilled
+        request.setFulfilledQuantity(0);
 
         if (dto.getDisasterId() != null) {
             Disaster disaster = disasterRepository.findById(dto.getDisasterId())
@@ -72,21 +72,21 @@ public class ResourceRequestService {
                 .toList();
     }
 
-    // --- READ one (Admin/Responder) ---
+    // --- READ one ---
     public ResourceRequestDTO getRequestById(Long id) {
         return resourceRequestRepository.findById(id)
                 .map(this::mapToDTO)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
     }
 
-    // --- Reporter: READ all their own requests ---
+    // --- Reporter: READ all ---
     public List<ResourceRequestDTO> getRequestsForReporter(String reporterEmail) {
         return resourceRequestRepository.findByReporter_Email(reporterEmail).stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // --- Reporter: READ one of their own requests ---
+    // --- Reporter: READ one ---
     public ResourceRequestDTO getRequestByIdForReporter(Long id, String reporterEmail) {
         ResourceRequest req = resourceRequestRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
@@ -107,8 +107,6 @@ public class ResourceRequestService {
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
         request.setFulfilledQuantity(dto.getFulfilledQuantity());
-
-        // auto-update status from fulfilled vs requested
         request.updateStatus();
 
         if (dto.getDisasterId() != null) {
@@ -153,6 +151,7 @@ public class ResourceRequestService {
     private void sendCreateRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
+        // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("Your request for " + request.getRequestedQuantity() +
@@ -161,56 +160,53 @@ public class ResourceRequestService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
+        // Responders
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.RESPONDER)
                 .forEach(responder -> {
                     NotificationDTO responderNotif = new NotificationDTO();
                     responderNotif.setRecipientEmail(responder.getEmail());
-                    responderNotif.setMessage("📢 New request for " + request.getCategory() +
+                    responderNotif.setMessage(" New request for " + request.getCategory() +
                             " (" + request.getRequestedQuantity() + " units).");
                     responderNotif.setType("REQUEST_ALERT");
                     responderNotif.setDeletable(true);
                     notificationProducer.sendNotification(responderNotif);
                 });
 
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("📌 New request created by " + reporterEmail +
-                            " for " + request.getCategory() + " (" + request.getRequestedQuantity() + ")");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage(" New request created by " + reporterEmail +
+                " for " + request.getCategory() + " (" + request.getRequestedQuantity() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 
     private void sendUpdateRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
+        // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
-        reporterNotif.setMessage("✏️ Your request #" + request.getId() + " has been updated by Admin.");
+        reporterNotif.setMessage(" Your request #" + request.getId() + " has been updated by Admin.");
         reporterNotif.setType("REQUEST_UPDATE");
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Request #" + request.getId() + " was updated.");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("Request #" + request.getId() + " was updated.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 
     private void sendDeleteRequestNotifications(ResourceRequest request) {
         String reporterEmail = request.getReporter().getEmail();
 
+        // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("Your request #" + request.getId() + " was deleted by Admin.");
@@ -218,15 +214,12 @@ public class ResourceRequestService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Request #" + request.getId() + " was deleted.");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("Request #" + request.getId() + " was deleted.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 }

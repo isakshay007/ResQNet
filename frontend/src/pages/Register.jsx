@@ -89,7 +89,8 @@ function Register() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
             >
-              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+              {/* FIXED: show 👁 when visible, show 👁‍🗨 when hidden */}
+              {showPassword ? <FiEye size={20} /> : <FiEyeOff size={20} />}
             </button>
           </div>
 
@@ -110,7 +111,7 @@ function Register() {
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
             >
-              {showConfirmPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+              {showConfirmPassword ? <FiEye size={20} /> : <FiEyeOff size={20} />}
             </button>
           </div>
 

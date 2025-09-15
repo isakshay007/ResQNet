@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
     axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
   };
 
-  // ✅ Always redirects to /login
+  //  Always redirects to /login
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);

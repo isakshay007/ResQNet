@@ -1,85 +1,74 @@
-// src/pages/MyDisasters.jsx
+// src/pages/Admin/ManageContributions.jsx
 import React, { useEffect, useState } from "react";
-import api from "../utils/api"; // axios wrapper
-import Navbar from "../components/Navbar/Navbar";
-import Footer from "../components/Footer";
+import { useNavigate } from "react-router-dom";
+import api from "../../utils/api";
+import AdminNavbar from "../../components/Navbar/AdminNavbar";
+import Footer from "../../components/Footer";
 
-function MyDisasters() {
-  const [disasters, setDisasters] = useState([]);
-  const [filteredDisasters, setFilteredDisasters] = useState([]);
+function ManageContributions() {
+  const navigate = useNavigate();
+  const [contributions, setContributions] = useState([]);
+  const [filteredContributions, setFilteredContributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // filters
-  const [typeFilter, setTypeFilter] = useState("None");
-  const [severityFilter, setSeverityFilter] = useState("None");
+  const [filterCategory, setFilterCategory] = useState("None");
 
   // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    const fetchDisasters = async () => {
+    const fetchContributions = async () => {
       try {
-        const res = await api.get("/disasters"); // GET /api/disasters
-        setDisasters(res.data);
-        setFilteredDisasters(res.data);
+        const res = await api.get("/admin/contributions"); // Admin endpoint
+        setContributions(res.data);
+        setFilteredContributions(res.data);
       } catch (err) {
-        console.error("Failed to fetch disasters:", err);
-        setError("Could not load disasters. Please try again later.");
+        console.error("Failed to fetch contributions:", err);
+        setError("Could not load contributions.");
       } finally {
         setLoading(false);
       }
     };
-
-    fetchDisasters();
+    fetchContributions();
   }, []);
-
-  // severity badge renderer
-  const renderSeverity = (severity) => {
-    const sev = severity?.toUpperCase();
-    let color =
-      sev === "HIGH"
-        ? "bg-red-100 text-red-700 border-red-300"
-        : sev === "MEDIUM"
-        ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-        : "bg-green-100 text-green-700 border-green-300";
-
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-bold border ${color}`}
-      >
-        {sev}
-      </span>
-    );
-  };
 
   // handle filter
   const handleSearch = () => {
-    let results = disasters;
+    let results = contributions;
 
-    if (typeFilter !== "None") {
+    if (filterCategory !== "None") {
       results = results.filter(
-        (d) => d.type.toLowerCase() === typeFilter.toLowerCase()
-      );
-    }
-    if (severityFilter !== "None") {
-      results = results.filter(
-        (d) => d.severity.toLowerCase() === severityFilter.toLowerCase()
+        (c) => c.category.toLowerCase() === filterCategory.toLowerCase()
       );
     }
 
-    setFilteredDisasters(results);
+    setFilteredContributions(results);
     setCurrentPage(1); // reset pagination
   };
 
   // pagination calculations
-  const totalPages = Math.ceil(filteredDisasters.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredContributions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentItems = filteredDisasters.slice(
+  const currentItems = filteredContributions.slice(
     startIndex,
     startIndex + itemsPerPage
   );
+
+  // delete contribution
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this contribution?")) return;
+    try {
+      await api.delete(`/admin/contributions/${id}`);
+      setContributions(contributions.filter((c) => c.id !== id));
+      setFilteredContributions(filteredContributions.filter((c) => c.id !== id));
+    } catch (err) {
+      console.error("Failed to delete contribution:", err);
+      alert("Error deleting contribution.");
+    }
+  };
 
   return (
     <div
@@ -87,106 +76,107 @@ function MyDisasters() {
                  bg-gradient-to-br from-teal-400 via-cyan-400 to-blue-500 
                  text-white animate-gradient-x"
     >
-      {/* Navbar */}
-      <Navbar active="my-disasters" />
+      <AdminNavbar />
 
-      {/* Page Content */}
       <main className="flex-1 px-6 py-8">
         <div className="bg-white/95 text-gray-900 rounded-2xl shadow-lg p-6 animate-fadeIn">
-          {/* Header with filters aligned right */}
+          {/* Header with filters + back button */}
           <div className="flex justify-between items-center mb-6">
             <h2
               className="text-3xl font-extrabold 
                          bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 
                          bg-clip-text text-transparent"
             >
-              My Disasters
+              Manage Contributions
             </h2>
 
-            {/* Filter Section */}
             <div className="flex flex-wrap gap-4 items-end">
+              {/* Category Filter */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Type
+                  Category
                 </label>
                 <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
                   className="border p-2 rounded-lg text-gray-800"
                 >
                   <option value="None">None</option>
-                  <option value="flood">Flood</option>
-                  <option value="fire">Fire</option>
-                  <option value="earthquake">Earthquake</option>
-                  <option value="storm">Storm</option>
-                  <option value="other">Other</option>
+                  <option value="Food">Food</option>
+                  <option value="Water">Water</option>
+                  <option value="Shelter">Shelter</option>
+                  <option value="Medical">Medical</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Severity
-                </label>
-                <select
-                  value={severityFilter}
-                  onChange={(e) => setSeverityFilter(e.target.value)}
-                  className="border p-2 rounded-lg text-gray-800"
-                >
-                  <option value="None">None</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-
+              {/* Filter Button */}
               <button
                 onClick={handleSearch}
                 className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
               >
                 Done
               </button>
+
+              {/* Go Back Button */}
+              <button
+                onClick={() => navigate("/admin/dashboard")}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
+              >
+                ← Go Back
+              </button>
             </div>
           </div>
 
-          {loading && <p className="text-gray-600">Loading...</p>}
+          {/* Loading / Error */}
+          {loading && <p className="text-gray-600">Loading contributions...</p>}
           {error && <p className="text-red-600">{error}</p>}
 
-          {!loading && !error && filteredDisasters.length === 0 && (
-            <p className="text-gray-600">No disasters found.</p>
+          {/* Empty State */}
+          {!loading && !error && filteredContributions.length === 0 && (
+            <p className="text-gray-600">No contributions found.</p>
           )}
 
-          {!loading && !error && filteredDisasters.length > 0 && (
+          {/* Table */}
+          {!loading && !error && filteredContributions.length > 0 && (
             <>
-              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed border-collapse rounded-lg overflow-hidden shadow">
                   <thead>
                     <tr className="bg-teal-600 text-white text-left text-sm uppercase tracking-wider">
-                      <th className="p-3 w-[15%]">Type</th>
-                      <th className="p-3 w-[12%]">Severity</th>
-                      <th className="p-3 w-[35%]">Description</th>
-                      <th className="p-3 w-[20%]">Location</th>
-                      <th className="p-3 w-[18%]">Reported By</th>
+                      <th className="p-3 w-[8%]">ID</th>
+                      <th className="p-3 w-[12%]">Request ID</th>
+                      <th className="p-3 w-[15%]">Category</th>
+                      <th className="p-3 w-[15%]">Quantity</th>
+                      <th className="p-3 w-[25%]">Responder</th>
+                      <th className="p-3 w-[15%]">Updated At</th>
+                      <th className="p-3 w-[10%] text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {currentItems.map((d) => (
+                    {currentItems.map((c) => (
                       <tr
-                        key={d.id}
+                        key={c.id}
                         className="odd:bg-gray-50 even:bg-gray-100 hover:bg-teal-50 transition"
                       >
-                        <td className="p-3 font-semibold text-gray-800 capitalize truncate">
-                          {d.type}
-                        </td>
-                        <td className="p-3">{renderSeverity(d.severity)}</td>
-                        <td className="p-3 text-gray-700 truncate">
-                          {d.description}
+                        <td className="p-3 font-semibold text-gray-800">{c.id}</td>
+                        <td className="p-3 text-gray-700">{c.requestId}</td>
+                        <td className="p-3 text-gray-700">{c.category}</td>
+                        <td className="p-3 text-gray-700">{c.contributedQuantity}</td>
+                        <td className="p-3">
+                          <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-100 text-blue-700 border-blue-300">
+                            {c.responderEmail}
+                          </span>
                         </td>
                         <td className="p-3 text-gray-600 text-sm">
-                          {d.latitude?.toFixed(4)}, {d.longitude?.toFixed(4)}
+                          {new Date(c.updatedAt).toLocaleString()}
                         </td>
-                        <td className="p-3 text-gray-800 truncate">
-                          {d.reporterEmail}
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                          >
+                            🗑 Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -239,10 +229,9 @@ function MyDisasters() {
         </div>
       </main>
 
-      {/* Footer */}
       <Footer />
     </div>
   );
 }
 
-export default MyDisasters;
+export default ManageContributions;

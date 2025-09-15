@@ -43,9 +43,9 @@ public class UserService {
         user.setName(req.getName());
         user.setEmail(req.getEmail());
         user.setRole(req.getRole());
-        user.setPassword(passwordEncoder.encode(req.getPassword())); // secure hash
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
 
-        //  Save permanent location if provided
+        // Save permanent location if provided
         user.setLatitude(req.getLatitude());
         user.setLongitude(req.getLongitude());
 
@@ -72,7 +72,7 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 
-    // --- Update user (Admin only, no password updates here) ---
+    // --- Update user (Admin only) ---
     @Transactional
     public UserDTO updateUser(UserDTO dto) {
         User user = userRepository.findById(dto.getId())
@@ -82,7 +82,6 @@ public class UserService {
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
 
-        // Allow updating permanent pin location
         user.setLatitude(dto.getLatitude());
         user.setLongitude(dto.getLongitude());
 
@@ -97,11 +96,11 @@ public class UserService {
 
         userRepository.delete(user);
 
-        //  Send Notifications
+        // Send Notifications
         sendUserDeletionNotifications(user);
     }
 
-    // --- 🔹 New: find user by email (for AuthController login) ---
+    // --- find user by email (for AuthController login) ---
     public User findByEmail(String email) {
         return userRepository.findByEmail(email).orElse(null);
     }
@@ -114,47 +113,37 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
-
-        //  Include permanent map location
         dto.setLatitude(user.getLatitude());
         dto.setLongitude(user.getLongitude());
-
         return dto;
     }
 
     // --- Notification helpers ---
     private void sendUserCreationNotifications(User user) {
+        // Welcome to user
         NotificationDTO welcomeNotif = new NotificationDTO();
         welcomeNotif.setRecipientEmail(user.getEmail());
-        welcomeNotif.setMessage(" Welcome " + user.getName() + "! Your account has been created 🎉");
+        welcomeNotif.setMessage("🎉 Welcome " + user.getName() + "! Your account has been created.");
         welcomeNotif.setType("WELCOME");
         welcomeNotif.setDeletable(true);
         notificationProducer.sendNotification(welcomeNotif);
 
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage(" New user registered: "
-                            + user.getEmail() + " (" + user.getRole() + ")");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("👤 New user registered: " + user.getEmail() + " (" + user.getRole() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 
     private void sendUserDeletionNotifications(User user) {
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage(" User deleted: "
-                            + user.getEmail() + " (" + user.getRole() + ")");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("🗑️ User deleted: " + user.getEmail() + " (" + user.getRole() + ")");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
     }
 }

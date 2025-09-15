@@ -40,7 +40,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
-            .cors(cors -> {}) // ✅ use the corsConfigurationSource() below
+            .cors(cors -> {}) //  use the corsConfigurationSource() below
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()   // allow login + register
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -1,82 +1,82 @@
-// src/pages/MyDisasters.jsx
+// src/pages/MyRequests.jsx
 import React, { useEffect, useState } from "react";
-import api from "../utils/api"; // axios wrapper
-import Navbar from "../components/Navbar/Navbar";
-import Footer from "../components/Footer";
+import api from "../../utils/api"; // axios wrapper
+import Navbar from "../../components/Navbar/Navbar";
+import Footer from "../../components/Footer";
 
-function MyDisasters() {
-  const [disasters, setDisasters] = useState([]);
-  const [filteredDisasters, setFilteredDisasters] = useState([]);
+function MyRequests() {
+  const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // filters
-  const [typeFilter, setTypeFilter] = useState("None");
-  const [severityFilter, setSeverityFilter] = useState("None");
+  const [categoryFilter, setCategoryFilter] = useState("None");
+  const [statusFilter, setStatusFilter] = useState("None");
 
   // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    const fetchDisasters = async () => {
+    const fetchRequests = async () => {
       try {
-        const res = await api.get("/disasters"); // GET /api/disasters
-        setDisasters(res.data);
-        setFilteredDisasters(res.data);
+        const res = await api.get("/requests/my"); // GET /api/requests/my
+        setRequests(res.data);
+        setFilteredRequests(res.data);
       } catch (err) {
-        console.error("Failed to fetch disasters:", err);
-        setError("Could not load disasters. Please try again later.");
+        console.error("Failed to fetch requests:", err);
+        setError("Could not load requests. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDisasters();
+    fetchRequests();
   }, []);
 
-  // severity badge renderer
-  const renderSeverity = (severity) => {
-    const sev = severity?.toUpperCase();
+  // status badge helper
+  const renderStatus = (status) => {
+    const s = status?.toUpperCase();
     let color =
-      sev === "HIGH"
-        ? "bg-red-100 text-red-700 border-red-300"
-        : sev === "MEDIUM"
+      s === "FULFILLED"
+        ? "bg-green-100 text-green-700 border-green-300"
+        : s === "PARTIAL"
         ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-        : "bg-green-100 text-green-700 border-green-300";
+        : "bg-red-100 text-red-700 border-red-300";
 
     return (
       <span
         className={`px-2 py-1 rounded-full text-xs font-bold border ${color}`}
       >
-        {sev}
+        {s}
       </span>
     );
   };
 
   // handle filter
   const handleSearch = () => {
-    let results = disasters;
+    let results = requests;
 
-    if (typeFilter !== "None") {
+    if (categoryFilter !== "None") {
       results = results.filter(
-        (d) => d.type.toLowerCase() === typeFilter.toLowerCase()
+        (r) => r.category.toLowerCase() === categoryFilter.toLowerCase()
       );
     }
-    if (severityFilter !== "None") {
+    if (statusFilter !== "None") {
       results = results.filter(
-        (d) => d.severity.toLowerCase() === severityFilter.toLowerCase()
+        (r) => r.status.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
-    setFilteredDisasters(results);
+    setFilteredRequests(results);
     setCurrentPage(1); // reset pagination
   };
 
   // pagination calculations
-  const totalPages = Math.ceil(filteredDisasters.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentItems = filteredDisasters.slice(
+  const currentItems = filteredRequests.slice(
     startIndex,
     startIndex + itemsPerPage
   );
@@ -88,7 +88,7 @@ function MyDisasters() {
                  text-white animate-gradient-x"
     >
       {/* Navbar */}
-      <Navbar active="my-disasters" />
+      <Navbar active="my-requests" />
 
       {/* Page Content */}
       <main className="flex-1 px-6 py-8">
@@ -100,42 +100,42 @@ function MyDisasters() {
                          bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 
                          bg-clip-text text-transparent"
             >
-              My Disasters
+              My Requests
             </h2>
 
             {/* Filter Section */}
             <div className="flex flex-wrap gap-4 items-end">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Type
+                  Category
                 </label>
                 <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
                   className="border p-2 rounded-lg text-gray-800"
                 >
                   <option value="None">None</option>
-                  <option value="flood">Flood</option>
-                  <option value="fire">Fire</option>
-                  <option value="earthquake">Earthquake</option>
-                  <option value="storm">Storm</option>
+                  <option value="food">Food</option>
+                  <option value="water">Water</option>
+                  <option value="medical">Medical</option>
+                  <option value="shelter">Shelter</option>
                   <option value="other">Other</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Severity
+                  Status
                 </label>
                 <select
-                  value={severityFilter}
-                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
                   className="border p-2 rounded-lg text-gray-800"
                 >
                   <option value="None">None</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
+                  <option value="pending">Pending</option>
+                  <option value="partial">Partial</option>
+                  <option value="fulfilled">Fulfilled</option>
                 </select>
               </div>
 
@@ -151,42 +151,39 @@ function MyDisasters() {
           {loading && <p className="text-gray-600">Loading...</p>}
           {error && <p className="text-red-600">{error}</p>}
 
-          {!loading && !error && filteredDisasters.length === 0 && (
-            <p className="text-gray-600">No disasters found.</p>
+          {!loading && !error && filteredRequests.length === 0 && (
+            <p className="text-gray-600">No requests found.</p>
           )}
 
-          {!loading && !error && filteredDisasters.length > 0 && (
+          {!loading && !error && filteredRequests.length > 0 && (
             <>
-              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed border-collapse rounded-lg overflow-hidden shadow">
                   <thead>
                     <tr className="bg-teal-600 text-white text-left text-sm uppercase tracking-wider">
-                      <th className="p-3 w-[15%]">Type</th>
-                      <th className="p-3 w-[12%]">Severity</th>
-                      <th className="p-3 w-[35%]">Description</th>
-                      <th className="p-3 w-[20%]">Location</th>
-                      <th className="p-3 w-[18%]">Reported By</th>
+                      <th className="p-3 w-[18%]">Category</th>
+                      <th className="p-3 w-[15%]">Requested Qty</th>
+                      <th className="p-3 w-[15%]">Fulfilled Qty</th>
+                      <th className="p-3 w-[15%]">Status</th>
+                      <th className="p-3 w-[12%]">Disaster ID</th>
+                      <th className="p-3 w-[25%]">Created At</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {currentItems.map((d) => (
+                    {currentItems.map((r) => (
                       <tr
-                        key={d.id}
+                        key={r.id}
                         className="odd:bg-gray-50 even:bg-gray-100 hover:bg-teal-50 transition"
                       >
                         <td className="p-3 font-semibold text-gray-800 capitalize truncate">
-                          {d.type}
+                          {r.category}
                         </td>
-                        <td className="p-3">{renderSeverity(d.severity)}</td>
-                        <td className="p-3 text-gray-700 truncate">
-                          {d.description}
-                        </td>
-                        <td className="p-3 text-gray-600 text-sm">
-                          {d.latitude?.toFixed(4)}, {d.longitude?.toFixed(4)}
-                        </td>
-                        <td className="p-3 text-gray-800 truncate">
-                          {d.reporterEmail}
+                        <td className="p-3 text-gray-700">{r.requestedQuantity}</td>
+                        <td className="p-3 text-gray-700">{r.fulfilledQuantity}</td>
+                        <td className="p-3">{renderStatus(r.status)}</td>
+                        <td className="p-3 text-gray-600">{r.disasterId}</td>
+                        <td className="p-3 text-gray-600 text-sm truncate">
+                          {new Date(r.createdAt).toLocaleString()}
                         </td>
                       </tr>
                     ))}
@@ -245,4 +242,4 @@ function MyDisasters() {
   );
 }
 
-export default MyDisasters;
+export default MyRequests;

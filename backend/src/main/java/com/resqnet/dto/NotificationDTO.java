@@ -9,7 +9,9 @@ public class NotificationDTO {
     private boolean read;
     private boolean deletable;
     private LocalDateTime createdAt;
-    private String recipientEmail; // easier for frontend
+
+    private String recipientEmail;   // For user-specific notifications
+    private boolean adminBroadcast;  // For admin-wide notifications
 
     // --- Getters & Setters ---
     public Long getId() { return id; }
@@ -32,4 +34,7 @@ public class NotificationDTO {
 
     public String getRecipientEmail() { return recipientEmail; }
     public void setRecipientEmail(String recipientEmail) { this.recipientEmail = recipientEmail; }
+
+    public boolean isAdminBroadcast() { return adminBroadcast; }
+    public void setAdminBroadcast(boolean adminBroadcast) { this.adminBroadcast = adminBroadcast; }
 }

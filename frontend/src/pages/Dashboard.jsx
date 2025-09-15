@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
@@ -7,6 +8,14 @@ import ResponderMapView from "../components/MapView/ResponderMapView";
 
 function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  //  Redirect Admins to their own dashboard
+  useEffect(() => {
+    if (user?.role === "ADMIN") {
+      navigate("/admin/dashboard");
+    }
+  }, [user, navigate]);
 
   return (
     <div
@@ -23,7 +32,8 @@ function Dashboard() {
           className="w-full h-[calc(100vh-160px)] rounded-3xl shadow-2xl overflow-hidden 
                      bg-white/95 text-gray-900 animate-fadeIn"
         >
-          {user?.role === "REPORTER" ? <ReporterMapView /> : <ResponderMapView />}
+          {user?.role === "REPORTER" && <ReporterMapView />}
+          {user?.role === "RESPONDER" && <ResponderMapView />}
         </div>
       </main>
 

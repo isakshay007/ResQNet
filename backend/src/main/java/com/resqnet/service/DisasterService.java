@@ -63,20 +63,16 @@ public class DisasterService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        // Notify all admins
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("New disaster reported: " + saved.getType() +
-                            " (" + saved.getSeverity() + ") by " + reporter.getEmail());
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("New disaster reported: " + saved.getType() +
+                " (" + saved.getSeverity() + ") by " + reporter.getEmail());
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true); //  broadcast to all admins
+        notificationProducer.sendNotification(adminNotif);
 
-        // Notify all responders
+        // Notify responders
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.Role.RESPONDER)
                 .forEach(responder -> {
@@ -130,18 +126,14 @@ public class DisasterService {
             notificationProducer.sendNotification(notif);
         }
 
-        // Admin log
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Disaster #" + updated.getId() +
-                            " (" + updated.getType() + ") was updated.");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("Disaster #" + updated.getId() +
+                " (" + updated.getType() + ") was updated.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
 
         return mapToDTO(updated);
     }
@@ -161,17 +153,14 @@ public class DisasterService {
             notificationProducer.sendNotification(notif);
         }
 
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole() == User.Role.ADMIN)
-                .forEach(admin -> {
-                    NotificationDTO adminNotif = new NotificationDTO();
-                    adminNotif.setRecipientEmail(admin.getEmail());
-                    adminNotif.setMessage("Disaster #" + disaster.getId() +
-                            " (" + disaster.getType() + ") was deleted.");
-                    adminNotif.setType("ADMIN_LOG");
-                    adminNotif.setDeletable(false);
-                    notificationProducer.sendNotification(adminNotif);
-                });
+        // Admin broadcast log
+        NotificationDTO adminNotif = new NotificationDTO();
+        adminNotif.setMessage("Disaster #" + disaster.getId() +
+                " (" + disaster.getType() + ") was deleted.");
+        adminNotif.setType("ADMIN_LOG");
+        adminNotif.setDeletable(false);
+        adminNotif.setAdminBroadcast(true);
+        notificationProducer.sendNotification(adminNotif);
 
         disasterRepository.deleteById(id);
     }
@@ -211,6 +200,4 @@ public class DisasterService {
 
         return dto;
     }
-
-    
 }

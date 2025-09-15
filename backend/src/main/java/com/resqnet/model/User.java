@@ -44,7 +44,7 @@ public class User {
     @Column(updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
-    // ✅ Permanent map pin (set when the user registers / updates profile)
+    //  Permanent map pin (set when the user registers / updates profile)
     @Column
     private Double latitude;
 

@@ -2,6 +2,16 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
+import { FiGift, FiX } from "react-icons/fi";
+import toast from "react-hot-toast";
+
+// Category → Icon mapping
+const categoryIcons = {
+  food: "🍞",
+  water: "💧",
+  shelter: "🏠",
+  medical: "⚕️",
+};
 
 function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
   const { token } = useAuth();
@@ -11,22 +21,27 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  // Reset form when modal opens
+  // mock: multiple prefilled items
+  const [extraItems] = useState([
+    { id: 1, category: "food", quantity: 10 },
+    { id: 2, category: "water", quantity: 5 },
+    { id: 3, category: "shelter", quantity: 2 },
+    { id: 4, category: "medical", quantity: 1 },
+  ]);
+  const [showAllItems, setShowAllItems] = useState(false);
+
+  // Reset on modal open
   useEffect(() => {
     setQuantity(1);
-    setError("");
-    setSuccess("");
     if (requestCategory) {
-      setItemType(requestCategory.toLowerCase()); // auto-fill from request
+      setItemType(requestCategory.toLowerCase());
     } else {
       setItemType("");
     }
   }, [requestId, requestCategory]);
 
-  //  Detect responder's location
+  // Detect responder location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -34,32 +49,26 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
           setLatitude(pos.coords.latitude);
           setLongitude(pos.coords.longitude);
         },
-        (err) => {
-          console.error("Failed to get location:", err);
-          setError("Could not fetch location. Please allow location access.");
+        () => {
+          toast.error("⚠️ Could not fetch location. Please allow location access.");
         }
       );
-    } else {
-      setError("Geolocation is not supported in this browser.");
     }
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     if (quantity <= 0) {
-      setError("Quantity must be at least 1.");
+      toast.error("⚠️ Quantity must be at least 1.");
       return;
     }
     if (!itemType) {
-      setError("Please select an item type.");
+      toast.error("⚠️ Please select an item type.");
       return;
     }
 
     setLoading(true);
-
     try {
       await axios.post(
         "http://localhost:8080/api/contributions",
@@ -68,97 +77,174 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
           contributedQuantity: quantity,
           latitude,
           longitude,
-          category: itemType, //  send category to backend
+          category: itemType,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setSuccess("Contribution submitted successfully!");
+      toast.success("Contribution submitted!");
       if (onSuccess) onSuccess();
 
-      // Reset before closing
-      setItemType(requestCategory ? requestCategory.toLowerCase() : "");
-      setQuantity(1);
-
       setTimeout(() => {
-        onClose();
-      }, 1200);
+        onClose?.();
+      }, 1500);
     } catch (err) {
       console.error("Contribution failed:", err);
-      setError("Failed to submit contribution. Try again.");
+      toast.error(" Failed to submit contribution. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // limit view
+  const visibleItems = showAllItems ? extraItems : extraItems.slice(0, 3);
+
   return (
-    <form onSubmit={handleSubmit} className="p-4">
-      <h2 className="text-lg font-bold mb-2">Contribute</h2>
-
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-      {success && <p className="text-green-600 text-sm mb-2">{success}</p>}
-
-      {/* Item Type */}
-      <label className="block mb-2">
-        Item Type:
-        <select
-          value={itemType}
-          onChange={(e) => setItemType(e.target.value)}
-          className="border rounded w-full p-1"
-          required
-          disabled={!!requestCategory} // lock if predefined
-        >
-          <option value="">-- Select --</option>
-          <option value="food">🍞 Food</option>
-          <option value="water">💧 Water</option>
-          <option value="medical">🏥 Medical</option>
-          <option value="shelter">⛺ Shelter</option>
-        </select>
-      </label>
-      {requestCategory && (
-        <p className="text-xs text-gray-500 mb-2">
-          Requested Category: {requestCategory}
-        </p>
-      )}
-
-      {/* Quantity */}
-      <label className="block mb-2">
-        Quantity:
-        <input
-          type="number"
-          min="1"
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          className="border rounded w-full p-1"
-          required
-        />
-      </label>
-
-      {/* Location */}
-      {latitude && longitude && (
-        <p className="text-sm text-gray-600 mb-2">
-          📍 Location detected: {latitude.toFixed(4)}, {longitude.toFixed(4)}
-        </p>
-      )}
-
-      <div className="flex justify-end gap-2 mt-3">
+    <div className="flex items-center justify-center w-full h-full relative animate-scaleIn">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 w-[520px] max-w-lg p-5 bg-white rounded-2xl shadow-2xl border border-gray-200 relative"
+      >
+        {/* Close button */}
         <button
           type="button"
           onClick={onClose}
-          className="px-3 py-1 bg-gray-300 rounded"
           disabled={loading}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
         >
-          Cancel
+          <FiX className="text-2xl" />
         </button>
-        <button
-          type="submit"
-          disabled={loading} // allow submit even without coords
-          className="px-3 py-1 bg-blue-600 text-white rounded"
-        >
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-      </div>
-    </form>
+
+        {/* Gradient Header */}
+        <div className="bg-gradient-to-r from-blue-600 via-cyan-500 to-sky-400 text-white px-5 py-2.5 rounded-xl shadow-md flex items-center gap-3">
+          <FiGift className="text-2xl drop-shadow-sm" />
+          <h2 className="font-extrabold text-lg tracking-wide">
+            Contribute Resources
+          </h2>
+        </div>
+
+        {/* Item Type */}
+        <div>
+          <label className="block text-gray-700 font-semibold text-sm">
+            Item Type
+          </label>
+          <select
+            value={itemType}
+            onChange={(e) => setItemType(e.target.value)}
+            className="w-full border border-gray-300 p-2.5 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            required
+            disabled={!!requestCategory}
+          >
+            <option value="">-- Select --</option>
+            {Object.keys(categoryIcons).map((cat) => (
+              <option key={cat} value={cat}>
+                {categoryIcons[cat]} {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </option>
+            ))}
+          </select>
+          {requestCategory && (
+            <p className="text-xs text-gray-500 mt-1 italic">
+              Requested Category: {requestCategory}
+            </p>
+          )}
+        </div>
+
+        {/* Quantity */}
+        <div>
+          <label className="block text-gray-700 font-semibold text-sm">
+            Quantity
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            className="w-full border border-gray-300 p-2.5 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            required
+          />
+        </div>
+
+        {/* Location */}
+        {latitude && longitude && (
+          <div className="px-4 py-2 bg-gray-50 border rounded-lg text-sm text-gray-700 shadow-sm">
+            📍 Location detected:{" "}
+            <span className="font-semibold text-gray-900">
+              {latitude.toFixed(4)}, {longitude.toFixed(4)}
+            </span>
+          </div>
+        )}
+
+        {/* Extra Items */}
+        {extraItems.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-gray-800 mb-1">
+              Previous Items
+            </h4>
+            <ul className="space-y-1">
+              {visibleItems.map((i) => (
+                <li
+                  key={i.id}
+                  className="px-3 py-2 bg-gray-50 rounded-lg border flex justify-between items-center shadow-sm hover:bg-gray-100 transition"
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <span className="text-lg">{categoryIcons[i.category]}</span>
+                    {i.category}
+                  </span>
+                  <span className="text-gray-700 font-semibold">
+                    ×{i.quantity}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {extraItems.length > 3 && (
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAllItems(!showAllItems)}
+                  className="text-blue-600 text-xs font-semibold hover:underline"
+                >
+                  {showAllItems ? "Show Less" : `${extraItems.length - 3} more +`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Buttons */}
+        <div className="flex space-x-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className={`flex-1 py-2.5 rounded-lg font-semibold text-sm text-white shadow-md transition ${
+              loading
+                ? "bg-gradient-to-r from-blue-400 to-cyan-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-blue-600 via-cyan-500 to-sky-500 hover:shadow-lg"
+            }`}
+          >
+            {loading ? "Submitting..." : " Submit "}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 bg-gray-300 text-gray-800 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-400 transition shadow-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.25s ease-out;
+        }
+      `}</style>
+    </div>
   );
 }
 

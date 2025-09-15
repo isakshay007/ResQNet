@@ -2,11 +2,20 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
+import { FiAlertTriangle } from "react-icons/fi";
+import toast from "react-hot-toast";
 
 function ReportDisasterForm({ position, onSuccess, onClose }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // helper to normalize strings
+  const normalize = (str) =>
+    str
+      ?.replace(/[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "")
+      .trim()
+      .toLowerCase();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,14 +27,14 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
     const description = form.get("description");
 
     if (!type || !severity || !description) {
-      setError("All fields are required.");
+      setError("⚠️ All fields are required.");
       return;
     }
 
     const data = {
-      type,
-      severity,
-      description,
+      type: normalize(type),
+      severity: normalize(severity),
+      description: description.trim().toLowerCase(),
       latitude: position.lat,
       longitude: position.lng,
     };
@@ -33,64 +42,95 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
     try {
       setLoading(true);
       const res = await axios.post("http://localhost:8080/api/disasters", data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (onSuccess) onSuccess(res.data);
 
-      e.target.reset(); // clear form
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      e.target.reset();
+      toast.success(" Disaster successfully reported!");
+      onClose?.(); // close popup if provided
     } catch (err) {
       console.error("Report failed:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Failed to report disaster. Please try again.");
+      toast.error(
+        err.response?.data?.message ||
+          " Failed to report disaster. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-full">
+    <div className="flex items-center justify-center w-full h-full relative">
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 max-w-md w-full p-6 bg-white rounded-xl shadow-lg"
+        className="space-y-5 max-w-md w-full p-6 bg-white rounded-xl shadow-xl border-t-4 border-red-600 relative"
       >
-        <h2 className="font-bold text-xl text-center text-gray-800 mb-2">
-          Report Disaster
-        </h2>
+        {/* Header */}
+        <div className="flex items-center justify-center space-x-2 mb-2">
+          <FiAlertTriangle className="text-red-600 text-2xl" />
+          <h2 className="font-extrabold text-xl text-gray-800">
+            Report Disaster
+          </h2>
+        </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {/* Error */}
+        {error && (
+          <p className="text-red-500 text-sm text-center font-medium">{error}</p>
+        )}
 
-        {/* Disaster Type */}
+        {/* Type */}
         <div>
           <label className="block text-gray-700 font-medium mb-1">
             Disaster Type
           </label>
-          <input
+          <select
             name="type"
-            placeholder="Flood, Fire, Earthquake..."
+            defaultValue=""
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
-          />
+          >
+            <option value="" disabled>
+              Select Type
+            </option>
+            <option value="flood">🌊 Flood</option>
+            <option value="fire">🔥 Fire</option>
+            <option value="earthquake">🌍 Earthquake</option>
+            <option value="storm">⛈️ Storm</option>
+            <option value="other">⚠️ Other</option>
+          </select>
         </div>
 
-        {/* Severity Dropdown */}
+        {/* Severity */}
         <div>
           <label className="block text-gray-700 font-medium mb-1">
             Severity
           </label>
           <select
             name="severity"
+            defaultValue=""
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           >
-            <option value="">Select Severity</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
+            <option value="" disabled>
+              Select Severity
+            </option>
+            <option value="low">🟢 Low</option>
+            <option value="medium">🟠 Medium</option>
+            <option value="high">🔴 High</option>
           </select>
+        </div>
+
+        {/* Location */}
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">Location</label>
+          <input
+            type="text"
+            readOnly
+            value={`Lat: ${position.lat.toFixed(4)}, Lng: ${position.lng.toFixed(
+              4
+            )}`}
+            className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100 text-gray-700"
+          />
         </div>
 
         {/* Description */}
@@ -100,7 +140,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           </label>
           <textarea
             name="description"
-            placeholder="Describe the disaster in detail..."
+            placeholder="Describe the disaster..."
             rows="4"
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           />
@@ -111,13 +151,13 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           <button
             type="submit"
             disabled={loading}
-            className={`flex-1 py-3 rounded-lg font-semibold text-white transition ${
+            className={`flex-1 flex items-center justify-center py-3 rounded-lg font-bold text-white transition ${
               loading
                 ? "bg-red-400 cursor-not-allowed"
                 : "bg-red-600 hover:bg-red-700"
             }`}
           >
-            {loading ? "Submitting..." : "Submit"}
+            🚨 {loading ? "Submitting..." : "Submit Report"}
           </button>
           <button
             type="button"

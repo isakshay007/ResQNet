@@ -18,15 +18,19 @@ public class Notification {
     @Column(nullable = false, length = 500)
     private String message;
 
-    // Notification type (optional: REQUEST, CONTRIBUTION, DISASTER, USER, SYSTEM)
+    // Notification type (REQUEST, CONTRIBUTION, DISASTER, USER, SYSTEM, ADMIN)
     @Column(nullable = false)
     private String type;
 
-    // Recipient user (who should receive this notification)
+    // Recipient user (normal user notification)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     @JsonIgnore
     private User recipient;
+
+    // Is this meant for all admins? (true = broadcast to admins)
+    @Column(nullable = false)
+    private boolean adminBroadcast = false;
 
     // Has the user read the notification?
     @Column(nullable = false)
@@ -43,11 +47,21 @@ public class Notification {
     // --- Constructors ---
     public Notification() {}
 
+    // For user-specific notification
     public Notification(String message, String type, User recipient, boolean deletable) {
         this.message = message;
         this.type = type;
         this.recipient = recipient;
         this.deletable = deletable;
+        this.adminBroadcast = false;
+    }
+
+    // For admin broadcast notification
+    public Notification(String message, String type, boolean deletable) {
+        this.message = message;
+        this.type = type;
+        this.deletable = deletable;
+        this.adminBroadcast = true;
     }
 
     // --- Getters & Setters ---
@@ -62,6 +76,9 @@ public class Notification {
 
     public User getRecipient() { return recipient; }
     public void setRecipient(User recipient) { this.recipient = recipient; }
+
+    public boolean isAdminBroadcast() { return adminBroadcast; }
+    public void setAdminBroadcast(boolean adminBroadcast) { this.adminBroadcast = adminBroadcast; }
 
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }

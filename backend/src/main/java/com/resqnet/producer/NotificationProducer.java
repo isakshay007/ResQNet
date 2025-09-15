@@ -15,7 +15,7 @@ public class NotificationProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // 🔹 Publish a notification event
+    //  Publish a notification event
     public void sendNotification(NotificationDTO notification) {
         kafkaTemplate.send(TOPIC, notification);
     }

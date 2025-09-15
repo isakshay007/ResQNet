@@ -2,27 +2,32 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
+import { FiPackage } from "react-icons/fi";
+import toast from "react-hot-toast";
 
 function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+
+  // normalize (strip emojis, lowercase)
+  const normalize = (str) =>
+    str?.replace(/[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "").trim().toLowerCase();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     const form = new FormData(e.target);
-    const category = form.get("category");
+    let category = form.get("category");
     const requestedQuantity = parseInt(form.get("requestedQuantity"), 10);
 
     if (!category || requestedQuantity <= 0) {
-      setError("Please fill all fields with valid values.");
+      setError("⚠️ All fields are required with valid values.");
       return;
     }
 
+    category = normalize(category);
     const data = { category, requestedQuantity, disasterId };
 
     try {
@@ -34,94 +39,85 @@ function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
         },
       });
 
-      setSuccess("Resource request submitted successfully!");
       if (onSuccess) onSuccess(res.data);
 
-      e.target.reset(); // clear form
-      setTimeout(() => {
-        onClose();
-      }, 1200);
+      e.target.reset();
+      toast.success(" Resource request submitted!");
+      onClose?.();
     } catch (err) {
-      console.error("Failed to request resources:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Failed to submit resource request. Try again.");
+      console.error("Resource request failed:", err.response?.data || err.message);
+      toast.error(
+        err.response?.data?.message || " Failed to submit resource request."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="w-full">
-      {/* Title + Close */}
-      <div className="flex justify-between items-center mb-3">
-        <h2 className="font-bold text-lg text-blue-700">Request Resources</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-700 text-lg font-bold"
-          disabled={loading}
-        >
-          ✕
-        </button>
-      </div>
+    <div className="flex items-center justify-center w-full h-full relative">
+      <form
+        onSubmit={handleSubmit}
+        className="relative space-y-4 max-w-lg w-full p-6 bg-white rounded-xl shadow-xl border-t-4 border-blue-600"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-center space-x-2 mb-3">
+          <FiPackage className="text-blue-600 text-2xl" />
+          <h2 className="font-extrabold text-xl text-gray-800">Request Resources</h2>
+        </div>
 
-      {/* Error / Success Messages */}
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-      {success && <p className="text-green-600 text-sm mb-2">{success}</p>}
+        {error && <p className="text-red-500 text-sm text-center font-medium">{error}</p>}
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category
+          <label className="block text-gray-700 font-medium text-sm mb-1">
+            Resource Category
           </label>
           <select
             name="category"
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-            required
+            className="w-full border border-gray-300 p-3 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500"
+            defaultValue=""
           >
-            <option value="">-- Select --</option>
-            <option value="Food">Food</option>
-            <option value="Water">Water</option>
-            <option value="Shelter">Shelter</option>
-            <option value="Medical">Medical</option>
+            <option value="" disabled>Select Category</option>
+            <option value="food">🍞 Food</option>
+            <option value="water">💧 Water</option>
+            <option value="shelter">🏠 Shelter</option>
+            <option value="medical">⚕️ Medical</option>
           </select>
         </div>
 
         {/* Quantity */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-gray-700 font-medium text-sm mb-1">
             Requested Quantity
           </label>
           <input
             type="number"
             name="requestedQuantity"
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter quantity (e.g., 50)"
+            className="w-full border border-gray-300 p-3 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500"
             min="1"
-            required
           />
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-end space-x-3 pt-2">
+        <div className="flex space-x-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className={`flex-1 flex items-center justify-center py-2 rounded-lg font-semibold text-sm text-white transition ${
+              loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {loading ? "Submitting..." : "Submit Request"}
+          </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
             disabled={loading}
+            className="flex-1 bg-gray-400 text-white py-2 rounded-lg font-semibold text-sm hover:bg-gray-500 disabled:opacity-60"
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            className={`px-4 py-2 rounded-lg text-white ${
-              loading
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-            disabled={loading}
-          >
-            {loading ? "Submitting..." : "Submit"}
           </button>
         </div>
       </form>

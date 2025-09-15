@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/*  Horizontal gradient shimmer */
+/* Horizontal gradient shimmer */
 @keyframes gradient-x {
   0%, 100% {
     background-position: 0% 50%;
@@ -9,13 +9,12 @@
     background-position: 100% 50%;
   }
 }
-
 .animate-gradient-x {
-  background-size: 250% 250%;   /* smoother transition */
+  background-size: 250% 250%;
   animation: gradient-x 6s ease-in-out infinite;
 }
 
-/*  Vertical gradient shimmer (optional) */
+/* Vertical gradient shimmer */
 @keyframes gradient-y {
   0%, 100% {
     background-position: 50% 0%;
@@ -24,7 +23,6 @@
     background-position: 50% 100%;
   }
 }
-
 .animate-gradient-y {
   background-size: 250% 250%;
   animation: gradient-y 6s ease-in-out infinite;
@@ -35,7 +33,7 @@
   background: transparent !important;
 }
 
-/*  Fade In animation */
+/* Fade In animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -46,8 +44,94 @@
     transform: scale(1);
   }
 }
-
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* ===== Emoji Toggle Styles ===== */
+.emoji-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 20px;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+/* Collapsed view (emoji + count + hidden all in one line) */
+.collapsed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-weight: 600;   /* bold */
+  color: #000;        /* black */
+  transition: opacity 0.3s ease-in-out;
+  white-space: nowrap; /*  force same line */
+}
+
+.collapsed .hidden-count {
+  font-size: 0.85rem; /* slightly smaller for ...+N */
+  font-weight: 600;
+  color: #000;
+  margin-left: 0.25rem;
+}
+.collapsed.hidden {
+  opacity: 0;
+}
+
+/* Expanded view (stacked neatly, left aligned) */
+.expanded {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;          /* more breathing room */
+  opacity: 0;
+  transform: translateX(-0.4rem);
+  transition: all 0.4s ease-out;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #000;
+}
+.expanded.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Expanded rows: emoji + aligned count */
+.expanded-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  min-width: 3.6rem;     /* ensures numbers align vertically */
+}
+.expanded-line .emoji {
+  font-size: 1.1rem;
+  line-height: 1;        /* keep emoji centered */
+}
+.expanded-line .count {
+  font-weight: 600;      /* bold */
+  color: #000;
+}
+
+/* Force leaflet custom divIcons to hide default "Marker" text */
+.leaflet-div-icon {
+  background: transparent;
+  border: none;
+  color: transparent;   /* hide fallback text */
+}
+
+/* Disaster marker container (wraps emoji + icon image) */
+.custom-disaster-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.custom-disaster-icon img {
+  display: block;
+  pointer-events: none; /* don’t interfere with click toggle */
+}
