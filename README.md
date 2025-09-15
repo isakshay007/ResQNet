@@ -1,7 +1,6 @@
 # 🌍 ResQNet – Disaster Relief Management System
 
-ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**.  
-It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are **faster, smarter, and safer**.
+ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are **faster, smarter, and safer**.
 
 ---
 
@@ -51,7 +50,7 @@ It enables disaster reporting, resource request tracking, contribution managemen
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 ### **Backend**
 - **Framework**: Spring Boot 3.x  
@@ -130,7 +129,7 @@ Frontend will run on **http://localhost:5173**
 
 ---
 
-## 📡 API Endpoints (High-Level)
+##  API Endpoints (High-Level)
 
 ### Auth
 - `POST /api/auth/register` → Register Reporter/Responder.
@@ -162,7 +161,7 @@ Frontend will run on **http://localhost:5173**
 
 ---
 
-## 📑 Frontend Pages
+##  Frontend Pages
 
 ### Reporter
 - `MyDisasters` – View & filter own disasters.  
@@ -192,7 +191,7 @@ Frontend will run on **http://localhost:5173**
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 - Real-time notifications via WebSockets (instead of polling).  
 - Disaster/request/contribution **edit forms** (not just delete).  
 - Bulk export (CSV/Excel) for admin reports.  
