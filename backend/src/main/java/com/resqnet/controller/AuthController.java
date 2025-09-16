@@ -28,7 +28,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    // Register new user (Reporter/Responder only, not Admin)
+    // --- Register new user (Reporter/Responder only, not Admin) ---
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest dto) {
         try {
@@ -44,7 +44,7 @@ public class AuthController {
         }
     }
 
-    // Login user
+    // --- Login user ---
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest dto) {
         User user = userService.findByEmail(dto.getEmail());
@@ -53,11 +53,14 @@ public class AuthController {
             return ResponseEntity.status(401).body("Invalid email or password");
         }
 
+        // ⚡ IMPORTANT: Pass plain role name (REPORTER / RESPONDER / ADMIN)
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                "email", user.getEmail(),
+                "name", user.getName()
         ));
     }
 }

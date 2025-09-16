@@ -53,7 +53,8 @@ function ReporterMapView() {
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [disasters, setDisasters] = useState([]);
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [requests, setRequests] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
+  const [myRequests, setMyRequests] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [resourceModal, setResourceModal] = useState(null);
 
@@ -71,20 +72,23 @@ function ReporterMapView() {
 
   const fetchRequestsAndContributions = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/api/requests/my", {
+      // Reporter’s own requests
+      const myReqRes = await axios.get("http://localhost:8080/api/requests/my", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setRequests(res.data);
+      setMyRequests(myReqRes.data);
 
-      const contribs = [];
-      for (let r of res.data) {
-        const cRes = await axios.get(
-          `http://localhost:8080/api/contributions/request/${r.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        cRes.data.forEach((c) => contribs.push(c));
-      }
-      setContributions(contribs);
+      // All requests (reporters are allowed to view global list too)
+      const allReqRes = await axios.get("http://localhost:8080/api/requests", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAllRequests(allReqRes.data);
+
+      // All contributions (backend filters by reporter’s scope automatically)
+      const contribRes = await axios.get("http://localhost:8080/api/contributions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setContributions(contribRes.data);
     } catch (err) {
       console.error("Failed to fetch requests/contributions:", err);
     }
@@ -186,16 +190,16 @@ function ReporterMapView() {
 
         {/* Disasters */}
         {disasters.map((d) => {
-          const myRequests = requests.filter((r) => r.disasterId === d.id);
+          const relatedRequests = allRequests.filter((r) => r.disasterId === d.id);
           const disasterContributions = contributions.filter((c) =>
-            myRequests.some((r) => r.id === c.requestId)
+            relatedRequests.some((r) => r.id === c.requestId)
           );
 
           const status =
-            myRequests.length > 0
-              ? myRequests.every((r) => r.status === "FULFILLED")
+            relatedRequests.length > 0
+              ? relatedRequests.every((r) => r.status === "FULFILLED")
                 ? "fulfilled"
-                : myRequests.some((r) => r.fulfilledQuantity > 0)
+                : relatedRequests.some((r) => r.fulfilledQuantity > 0)
                 ? "partial"
                 : "reported"
               : "reported";
@@ -214,7 +218,7 @@ function ReporterMapView() {
               <Popup minWidth={420} maxWidth={500}>
                 <DisasterPopup
                   disaster={d}
-                  requests={myRequests}
+                  requests={relatedRequests}
                   contributions={disasterContributions}
                   onRequestResources={() => setResourceModal({ id: d.id })}
                 />

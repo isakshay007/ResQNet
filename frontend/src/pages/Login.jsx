@@ -1,8 +1,10 @@
+// src/pages/Login.jsx
 import React, { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
-import { useAuth } from "../context/AuthContext"; // shared global login
+import { useAuth } from "../context/AuthContext"; 
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -23,11 +25,14 @@ function Login() {
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data?.token) {
-        // Save JWT globally (AuthContext handles decoding user info incl. role)
-        const user = login(res.data.token);
+        // Save JWT globally
+        login(res.data.token);
+
+        // Decode token to check role
+        const decoded = jwtDecode(res.data.token);
 
         // Role-based redirect
-        if (user?.role === "ADMIN") {
+        if (decoded.role === "ADMIN") {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");
@@ -123,7 +128,6 @@ function Login() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-gray-700"
               >
-                {/*  Fixed: Eye when visible, EyeOff when hidden */}
                 {showPassword ? <FiEye size={20} /> : <FiEyeOff size={20} />}
               </button>
             </div>

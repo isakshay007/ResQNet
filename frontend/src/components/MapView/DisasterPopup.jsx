@@ -19,7 +19,7 @@ function DisasterPopup({ disaster, requests = [], contributions = [], onRequestR
 
   // Status color mapping
   const getStatusBadge = (status) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case "FULFILLED":
         return <span className="text-green-600 font-semibold">(Fulfilled)</span>;
       case "PARTIAL":
@@ -40,7 +40,7 @@ function DisasterPopup({ disaster, requests = [], contributions = [], onRequestR
   const gradientClass =
     severityGradient[formatSeverity(disaster.severity)] || "from-gray-500 to-blue-600";
 
-  // Limit items shown initially
+  // 🔥 Always show ALL requests & contributions for the disaster
   const visibleRequests = showAllRequests ? requests : requests.slice(0, 3);
   const visibleContributions = showAllContribs ? contributions : contributions.slice(0, 3);
 
@@ -75,7 +75,7 @@ function DisasterPopup({ disaster, requests = [], contributions = [], onRequestR
         )}
       </div>
 
-      {/* Requests */}
+      {/* Requests (global) */}
       <div>
         <h4 className="font-semibold">Requests</h4>
         {requests.length > 0 ? (
@@ -112,7 +112,7 @@ function DisasterPopup({ disaster, requests = [], contributions = [], onRequestR
         )}
       </div>
 
-      {/* Contributions */}
+      {/* Contributions (global) */}
       <div>
         <h4 className="font-semibold">Contributions</h4>
         {contributions.length > 0 ? (

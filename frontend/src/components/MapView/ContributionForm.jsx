@@ -1,9 +1,9 @@
 // src/components/MapView/ContributionForm.jsx
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 import { FiGift, FiX } from "react-icons/fi";
 import toast from "react-hot-toast";
+import api from "../../utils/api"; // centralized axios instance
 
 // Category → Icon mapping
 const categoryIcons = {
@@ -70,8 +70,8 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
 
     setLoading(true);
     try {
-      await axios.post(
-        "http://localhost:8080/api/contributions",
+      await api.post(
+        "/contributions",
         {
           requestId,
           contributedQuantity: quantity,
@@ -82,7 +82,7 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success("Contribution submitted!");
+      toast.success("✅ Contribution submitted!");
       if (onSuccess) onSuccess();
 
       setTimeout(() => {
@@ -90,7 +90,10 @@ function ContributionForm({ requestId, requestCategory, onSuccess, onClose }) {
       }, 1500);
     } catch (err) {
       console.error("Contribution failed:", err);
-      toast.error(" Failed to submit contribution. Try again.");
+      const msg =
+        err.response?.data?.message ||
+        "Failed to submit contribution. Try again.";
+      toast.error("⚠️ " + msg);
     } finally {
       setLoading(false);
     }

@@ -21,7 +21,7 @@ const formatCategory = (category = "") => {
 };
 
 function MyContributions() {
-  const { user } = useAuth(); // user contains responder email
+  const { user } = useAuth(); // user contains responder email + role
   const [contributions, setContributions] = useState([]);
   const [filteredContributions, setFilteredContributions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,14 +37,7 @@ function MyContributions() {
   useEffect(() => {
     const fetchContributions = async () => {
       try {
-        if (!user?.email) {
-          setError("User not authenticated.");
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Fetch responder’s contributions
-        const res = await api.get(`/contributions/responder/${user.email}`);
+        const res = await api.get("/contributions");
         setContributions(res.data);
         setFilteredContributions(res.data);
       } catch (err) {
@@ -56,7 +49,7 @@ function MyContributions() {
     };
 
     fetchContributions();
-  }, [user]);
+  }, []);
 
   // === Apply filters ===
   const handleSearch = () => {
@@ -79,6 +72,21 @@ function MyContributions() {
     startIndex,
     startIndex + itemsPerPage
   );
+
+  // === Role guard: responders only ===
+  if (user?.role !== "RESPONDER") {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-red-600 font-semibold">
+            Not authorized to view this page.
+          </p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div

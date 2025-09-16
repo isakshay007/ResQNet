@@ -35,7 +35,7 @@ public class ContributionService {
         this.notificationProducer = notificationProducer;
     }
 
-    // --- Create contribution ---
+    // ---------------- CREATE ----------------
     @Transactional
     public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
         ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
@@ -84,26 +84,26 @@ public class ContributionService {
         return mapToDTO(saved);
     }
 
-    // --- Admin only ---
-    public List<ContributionDTO> getAllContributions() {
-        return contributionRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    // ---------------- READ: ROLE-FILTERED ----------------
+    public List<ContributionDTO> getAllContributionsForUser(String userEmail) {
+        User loggedInUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        switch (loggedInUser.getRole()) {
+            case ADMIN:
+                return getAllContributions(); // delegate to raw method
+            case RESPONDER:
+                return contributionRepository.findByResponder_Email(userEmail).stream()
+                        .map(this::mapToDTO).toList();
+            case REPORTER:
+                return contributionRepository.findAll().stream()
+                        .filter(c -> c.getRequest().getReporter().getEmail().equalsIgnoreCase(userEmail))
+                        .map(this::mapToDTO).toList();
+            default:
+                throw new AccessDeniedException("Unsupported role");
+        }
     }
 
-    public List<ContributionDTO> getByRequest(Long requestId) {
-        return contributionRepository.findByRequestId(requestId).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public List<ContributionDTO> getByResponder(String responderEmail) {
-        return contributionRepository.findByResponder_Email(responderEmail).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-    }
-
-    // --- Security filtering ---
     public List<ContributionDTO> getByRequestWithSecurity(Long requestId, String userEmail) {
         ResourceRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
@@ -112,13 +112,12 @@ public class ContributionService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         if (loggedInUser.getRole() == User.Role.REPORTER &&
-                !request.getReporter().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new AccessDeniedException("You are not authorized to view contributions for this request");
+            !request.getReporter().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new AccessDeniedException("Not authorized to view this request’s contributions");
         }
 
         return contributionRepository.findByRequestId(requestId).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .map(this::mapToDTO).toList();
     }
 
     public List<ContributionDTO> getByResponderWithSecurity(String responderEmail, String loggedInEmail) {
@@ -126,8 +125,8 @@ public class ContributionService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         if (loggedInUser.getRole() == User.Role.RESPONDER &&
-                !responderEmail.equalsIgnoreCase(loggedInEmail)) {
-            throw new AccessDeniedException("You can only view your own contributions");
+            !responderEmail.equalsIgnoreCase(loggedInEmail)) {
+            throw new AccessDeniedException("Responders can only view their own contributions");
         }
 
         if (loggedInUser.getRole() == User.Role.REPORTER) {
@@ -135,10 +134,26 @@ public class ContributionService {
         }
 
         return contributionRepository.findByResponder_Email(responderEmail).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .map(this::mapToDTO).toList();
     }
 
+    // ---------------- READ: RAW ADMIN ----------------
+    public List<ContributionDTO> getAllContributions() {
+        return contributionRepository.findAll().stream()
+                .map(this::mapToDTO).toList();
+    }
+
+    public List<ContributionDTO> getByRequest(Long requestId) {
+        return contributionRepository.findByRequestId(requestId).stream()
+                .map(this::mapToDTO).toList();
+    }
+
+    public List<ContributionDTO> getByResponder(String responderEmail) {
+        return contributionRepository.findByResponder_Email(responderEmail).stream()
+                .map(this::mapToDTO).toList();
+    }
+
+    // ---------------- DELETE ----------------
     @Transactional
     public void deleteContribution(Long id) {
         Contribution contribution = contributionRepository.findById(id)
@@ -154,7 +169,23 @@ public class ContributionService {
         sendContributionDeletionNotifications(contribution);
     }
 
-    // --- Notifications ---
+    @Transactional
+    public void deleteContributionWithSecurity(Long id, String userEmail) {
+        Contribution contribution = contributionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Contribution not found"));
+
+        User loggedInUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (loggedInUser.getRole() == User.Role.RESPONDER &&
+            !contribution.getResponder().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new AccessDeniedException("Responders can only delete their own contributions");
+        }
+
+        deleteContribution(id); // reuse logic
+    }
+
+    // ---------------- NOTIFICATIONS ----------------
     private void sendContributionNotifications(Contribution contribution) {
         String reporterEmail = contribution.getRequest().getReporter().getEmail();
         String responderEmail = contribution.getResponder().getEmail();
@@ -163,7 +194,7 @@ public class ContributionService {
         int fulfilled = contribution.getRequest().getFulfilledQuantity();
         int requested = contribution.getRequest().getRequestedQuantity();
 
-        // Reporter notification
+        // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
         if (fulfilled >= requested) {
@@ -179,7 +210,7 @@ public class ContributionService {
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
-        // Responder notification
+        // Responder
         NotificationDTO responderNotif = new NotificationDTO();
         responderNotif.setRecipientEmail(responderEmail);
         responderNotif.setMessage("You contributed " + contributed + " units of " +
@@ -188,7 +219,7 @@ public class ContributionService {
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
 
-        // Admin broadcast
+        // Admin
         NotificationDTO adminNotif = new NotificationDTO();
         adminNotif.setMessage("New contribution: " + contributed + " units of " +
                 contribution.getCategory() + " by " + responderEmail +
@@ -196,7 +227,7 @@ public class ContributionService {
                 " (Lat:" + contribution.getLatitude() + ", Lng:" + contribution.getLongitude() + ")");
         adminNotif.setType("ADMIN_LOG");
         adminNotif.setDeletable(false);
-        adminNotif.setAdminBroadcast(true); //  one broadcast for all admins
+        adminNotif.setAdminBroadcast(true);
         notificationProducer.sendNotification(adminNotif);
     }
 
@@ -225,7 +256,7 @@ public class ContributionService {
         responderNotif.setDeletable(true);
         notificationProducer.sendNotification(responderNotif);
 
-        // Admin broadcast
+        // Admin
         NotificationDTO adminNotif = new NotificationDTO();
         adminNotif.setMessage("Contribution of " + contribution.getContributedQuantity() +
                 " units of " + contribution.getCategory() + " by " + responderEmail +
@@ -236,7 +267,7 @@ public class ContributionService {
         notificationProducer.sendNotification(adminNotif);
     }
 
-    // --- Mapper ---
+    // ---------------- MAPPER ----------------
     private ContributionDTO mapToDTO(Contribution c) {
         ContributionDTO dto = new ContributionDTO();
         dto.setId(c.getId());

@@ -1,7 +1,8 @@
+// src/components/Navbar/Navbar.jsx
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import ConfirmModal from "../common/ConfirmModal"; // reusable modal
+import ConfirmModal from "../common/ConfirmModal"; // ✅ import modal
 
 function Navbar() {
   const { user, logout } = useAuth();
@@ -10,11 +11,11 @@ function Navbar() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleLogout = () => {
-    logout(); // clears token + redirects (handled in AuthContext)
+    logout();
     setShowConfirm(false);
+    navigate("/login"); // redirect after logout
   };
 
-  // helper for active link styling (works for exact & prefix match)
   const linkClass = (path, prefixMatch = false) => {
     const isActive = prefixMatch
       ? location.pathname.startsWith(path)
@@ -26,9 +27,7 @@ function Navbar() {
 
   return (
     <>
-      {/* Fixed Navbar pinned at the top */}
       <header className="fixed top-0 left-0 right-0 z-[1000] flex justify-between items-center bg-white/90 backdrop-blur-lg text-gray-900 px-6 py-3 shadow-md">
-        {/* Left side: Dynamic Title */}
         <h1
           className="text-lg font-bold cursor-pointer bg-gradient-to-r from-teal-500 via-blue-600 to-teal-500 bg-[length:200%_100%] bg-clip-text text-transparent animate-subtle-shimmer"
           onClick={() =>
@@ -40,26 +39,21 @@ function Navbar() {
           {user?.role || "User"} – ResQNet Dashboard
         </h1>
 
-        {/* Right side: Role-based links */}
         <nav className="flex space-x-6 items-center">
-          {/* Reporter & Responder: My Disasters */}
-          {(user?.role === "REPORTER" || user?.role === "RESPONDER") && (
-            <button
-              onClick={() => navigate("/my-disasters")}
-              className={linkClass("/my-disasters")}
-            >
-              My Disasters
-            </button>
-          )}
-
-          {/* Reporter-only */}
+          {/* Reporter */}
           {user?.role === "REPORTER" && (
             <>
               <button
-                onClick={() => navigate("/my-requests")}
-                className={linkClass("/my-requests")}
+                onClick={() => navigate("/my-disasters")}
+                className={linkClass("/my-disasters")}
               >
-                My Requests
+                My Disasters
+              </button>
+              <button
+                onClick={() => navigate("/requests")}
+                className={linkClass("/requests")}
+              >
+                Requests
               </button>
               <button
                 onClick={() => navigate("/contributions")}
@@ -67,17 +61,29 @@ function Navbar() {
               >
                 Contributions
               </button>
+              <button
+                onClick={() => navigate("/notifications")}
+                className={linkClass("/notifications")}
+              >
+                Notifications
+              </button>
             </>
           )}
 
-          {/* Responder-only */}
+          {/* Responder */}
           {user?.role === "RESPONDER" && (
             <>
               <button
-                onClick={() => navigate("/all-requests")}
-                className={linkClass("/all-requests")}
+                onClick={() => navigate("/my-disasters")}
+                className={linkClass("/my-disasters")}
               >
-                All Requests
+                My Disasters
+              </button>
+              <button
+                onClick={() => navigate("/requests")}
+                className={linkClass("/requests")}
+              >
+                Requests
               </button>
               <button
                 onClick={() => navigate("/my-contributions")}
@@ -85,15 +91,21 @@ function Navbar() {
               >
                 My Contributions
               </button>
+              <button
+                onClick={() => navigate("/notifications")}
+                className={linkClass("/notifications")}
+              >
+                Notifications
+              </button>
             </>
           )}
 
-          {/* Admin-only */}
+          {/* Admin */}
           {user?.role === "ADMIN" && (
             <>
               <button
                 onClick={() => navigate("/admin/dashboard")}
-                className={linkClass("/admin", true)} // highlight on any /admin/*
+                className={linkClass("/admin", true)}
               >
                 Admin Dashboard
               </button>
@@ -136,15 +148,7 @@ function Navbar() {
             </>
           )}
 
-          {/* Shared */}
-          <button
-            onClick={() => navigate("/notifications")}
-            className={linkClass("/notifications")}
-          >
-            Notifications
-          </button>
-
-          {/* Logout */}
+          {/* Logout → show confirm modal */}
           <button
             onClick={() => setShowConfirm(true)}
             className="relative z-[1001] bg-red-500 px-3 py-1 rounded hover:bg-red-600 text-white"
@@ -153,7 +157,6 @@ function Navbar() {
           </button>
         </nav>
 
-        {/* Subtle shimmer style */}
         <style>{`
           @keyframes subtle-shimmer {
             0% { background-position: -200% 0; }
@@ -165,10 +168,9 @@ function Navbar() {
         `}</style>
       </header>
 
-      {/* Spacer so UI content is pushed below Navbar */}
       <div className="h-[64px]" />
 
-      {/* Logout Confirmation Modal */}
+      {/* ✅ Confirm Modal Integration */}
       {showConfirm && (
         <ConfirmModal
           title="Are you sure you want to logout?"

@@ -22,37 +22,50 @@ public class ResourceRequestController {
         this.service = service;
     }
 
-    // --- Reporter endpoints ---
+    // ---------------- REPORTER ----------------
 
+    // Create new request
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
-    public ResponseEntity<ResourceRequestDTO> createRequest(@Valid @RequestBody ResourceRequestDTO dto,
-                                                            Authentication auth) {
+    public ResponseEntity<ResourceRequestDTO> createRequest(
+            @Valid @RequestBody ResourceRequestDTO dto,
+            Authentication auth) {
         ResourceRequestDTO created = service.createRequest(dto, auth.getName());
         return ResponseEntity.created(URI.create("/api/requests/" + created.getId()))
                              .body(created);
     }
 
+    // View only their own requests
     @GetMapping("/my")
     @PreAuthorize("hasRole('REPORTER')")
     public List<ResourceRequestDTO> getMyRequests(Authentication auth) {
         return service.getRequestsForReporter(auth.getName());
     }
 
-    @GetMapping("/{id:[0-9]+}")
+    @GetMapping("/my/{id:[0-9]+}")
     @PreAuthorize("hasRole('REPORTER')")
     public ResourceRequestDTO getMyRequestById(@PathVariable Long id, Authentication auth) {
         return service.getRequestByIdForReporter(id, auth.getName());
     }
 
-    // --- Admin/Responder endpoints ---
+    // ---------------- COMMON (Reporter, Responder, Admin) ----------------
 
+    // Everyone authenticated can view all requests (summary/global)
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RESPONDER')")
+    @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
     public List<ResourceRequestDTO> getAllRequests() {
         return service.getAllRequests();
     }
 
+    @GetMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
+    public ResourceRequestDTO getRequestById(@PathVariable Long id) {
+        return service.getRequestById(id);
+    }
+
+    // ---------------- ADMIN ----------------
+
+    // Update any request
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResourceRequestDTO updateRequest(@PathVariable Long id,
@@ -61,6 +74,7 @@ public class ResourceRequestController {
         return service.updateRequest(dto);
     }
 
+    // Delete any request
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {

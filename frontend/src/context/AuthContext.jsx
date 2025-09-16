@@ -1,4 +1,3 @@
-// src/context/AuthContext.js
 import { createContext, useContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
@@ -10,21 +9,36 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const parseUserFromToken = (jwt) => {
+    try {
+      const decoded = jwtDecode(jwt);
+
+      // Role field may vary depending on backend
+      let role =
+        decoded.role ||
+        decoded.roles?.[0] || // some JWTs use "roles" array
+        decoded.authorities?.[0] || // Spring Security default
+        null;
+
+      return { email: decoded.sub, role };
+    } catch (err) {
+      console.error("Failed to decode token", err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (token) {
-      try {
-        const decoded = jwtDecode(token);
+      const userObj = parseUserFromToken(token);
 
-        // ⏳ Token expiry check
-        if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-          logout(); // will auto redirect now
-        } else {
-          setUser({ email: decoded.sub, role: decoded.role });
-          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        }
-      } catch (err) {
-        console.error("Invalid token", err);
-        logout(); // will auto redirect now
+      if (!userObj) {
+        logout();
+      } else if (jwtDecode(token).exp * 1000 < Date.now()) {
+        // expired
+        logout();
+      } else {
+        setUser(userObj);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
     } else {
       setUser(null);
@@ -36,24 +50,22 @@ export function AuthProvider({ children }) {
   const login = (newToken) => {
     localStorage.setItem("token", newToken);
     setToken(newToken);
-    try {
-      const decoded = jwtDecode(newToken);
-      setUser({ email: decoded.sub, role: decoded.role });
-    } catch (err) {
-      console.error("Failed to decode token", err);
-      setUser(null);
-    }
+
+    const userObj = parseUserFromToken(newToken);
+    setUser(userObj);
+
     axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+    return userObj; // return user info for role-based redirect
   };
 
-  //  Always redirects to /login
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common["Authorization"];
 
-    window.location.href = "/login"; // force reload + redirect
+    // Safe: no dependency on React Router
+    window.location.href = "/login";
   };
 
   return (

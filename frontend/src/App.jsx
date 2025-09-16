@@ -18,6 +18,7 @@ import MyContributions from "./pages/Responder/MyContributions.jsx";
 
 // Shared
 import Notifications from "./pages/Notifications.jsx";
+import Requests from "./pages/Requests.jsx"; // ✅ global requests
 
 // Admin
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
@@ -56,6 +57,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Notifications />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🌍 Global Requests (all roles: Reporter, Responder, Admin) */}
+          <Route
+            path="/requests"
+            element={
+              <ProtectedRoute roles={["REPORTER", "RESPONDER", "ADMIN"]}>
+                <Requests />
               </ProtectedRoute>
             }
           />

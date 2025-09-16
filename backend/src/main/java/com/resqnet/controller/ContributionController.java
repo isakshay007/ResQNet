@@ -22,7 +22,9 @@ public class ContributionController {
         this.service = service;
     }
 
-    // --- RESPONDER: Create a contribution
+    // ---------------- RESPONDER ----------------
+
+    // Create a new contribution (Responder only)
     @PostMapping
     @PreAuthorize("hasRole('RESPONDER')")
     public ResponseEntity<ContributionDTO> createContribution(@Valid @RequestBody ContributionDTO dto,
@@ -31,14 +33,22 @@ public class ContributionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // --- ADMIN: Get all contributions
+    // ---------------- COMMON (Reporter, Responder, Admin) ----------------
+
+    // Global view of contributions
+    // - Admin → all contributions
+    // - Responder → only their contributions
+    // - Reporter → contributions tied to their requests
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<ContributionDTO> getAllContributions() {
-        return service.getAllContributions();
+    @PreAuthorize("isAuthenticated()")
+    public List<ContributionDTO> getAllContributions(Authentication auth) {
+        return service.getAllContributionsForUser(auth.getName());
     }
 
-    // --- REPORTER (own requests), RESPONDER (any), ADMIN (any)
+    // By request
+    // - Admin → any request
+    // - Responder → any request
+    // - Reporter → only if the request belongs to them
     @GetMapping("/request/{requestId}")
     @PreAuthorize("isAuthenticated()")
     public List<ContributionDTO> getByRequest(@PathVariable Long requestId,
@@ -46,7 +56,10 @@ public class ContributionController {
         return service.getByRequestWithSecurity(requestId, auth.getName());
     }
 
-    // --- RESPONDER (own), ADMIN (any)
+    // By responder
+    // - Admin → any responder
+    // - Responder → only themselves
+    // - Reporter → forbidden
     @GetMapping("/responder/{responderEmail}")
     @PreAuthorize("isAuthenticated()")
     public List<ContributionDTO> getByResponder(@PathVariable String responderEmail,
@@ -54,11 +67,16 @@ public class ContributionController {
         return service.getByResponderWithSecurity(responderEmail, auth.getName());
     }
 
-    // --- ADMIN or RESPONDER (own): Delete a contribution
+    // ---------------- ADMIN / RESPONDER ----------------
+
+    // Delete contribution
+    // - Admin → any contribution
+    // - Responder → only their own (checked in service)
     @DeleteMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> deleteContribution(@PathVariable Long id) {
-        service.deleteContribution(id);
+    @PreAuthorize("hasAnyRole('ADMIN','RESPONDER')")
+    public ResponseEntity<Void> deleteContribution(@PathVariable Long id,
+                                                   Authentication auth) {
+        service.deleteContributionWithSecurity(id, auth.getName());
         return ResponseEntity.noContent().build();
     }
 }

@@ -22,7 +22,7 @@ public class DisasterController {
         this.disasterService = disasterService;
     }
 
-    // --- Reporter actions ---
+    // ---------------- REPORTER ----------------
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
     public ResponseEntity<DisasterDTO> createDisaster(@Valid @RequestBody DisasterDTO dto,
@@ -32,20 +32,21 @@ public class DisasterController {
                              .body(created);
     }
 
-    // --- Common (Reporter, Responder, Admin) ---
+    // ---------------- COMMON: Reporter, Responder, Admin ----------------
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public List<DisasterDTO> getAllDisasters() {
+    @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
+    public List<DisasterDTO> getAllDisasters(Authentication auth) {
+        // later: can add role-based filtering if needed
         return disasterService.getAllDisasters();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public DisasterDTO getDisasterById(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
+    public DisasterDTO getDisasterById(@PathVariable Long id, Authentication auth) {
         return disasterService.getDisasterById(id);
     }
 
-    // --- Admin actions ---
+    // ---------------- ADMIN ONLY ----------------
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public DisasterDTO updateDisaster(@PathVariable Long id,

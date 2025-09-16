@@ -1,10 +1,13 @@
-// src/pages/MyRequests.jsx
+// src/pages/Requests.jsx
 import React, { useEffect, useState } from "react";
-import api from "../../utils/api"; // axios wrapper
-import Navbar from "../../components/Navbar/Navbar";
-import Footer from "../../components/Footer";
+import api from "../utils/api"; // axios wrapper with token
+import Navbar from "../components/Navbar/Navbar";
+import Footer from "../components/Footer";
+import { useAuth } from "../context/AuthContext";
 
-function MyRequests() {
+function Requests() {
+  const { user } = useAuth();
+
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,22 +21,33 @@ function MyRequests() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // toggle between my vs all
+  const [viewType, setViewType] = useState("all"); // "all" | "my"
+
   useEffect(() => {
     const fetchRequests = async () => {
+      setLoading(true);
+      setError("");
+
       try {
-        const res = await api.get("/requests/my"); // Reporter-specific endpoint
-        setRequests(res.data);
-        setFilteredRequests(res.data);
+        const endpoint = viewType === "my" ? "/requests/my" : "/requests";
+        const res = await api.get(endpoint);
+        setRequests(res.data || []);
+        setFilteredRequests(res.data || []);
       } catch (err) {
         console.error("Failed to fetch requests:", err);
-        setError("Could not load your requests. Please try again later.");
+        if (err.response?.status === 403) {
+          setError("You don’t have permission to view these requests.");
+        } else {
+          setError("Could not load requests. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRequests();
-  }, []);
+    if (user) fetchRequests();
+  }, [user, viewType]);
 
   // status badge helper
   const renderStatus = (status) => {
@@ -54,7 +68,7 @@ function MyRequests() {
     );
   };
 
-  // apply filters
+  // filter handler
   const handleSearch = () => {
     let results = [...requests];
 
@@ -70,10 +84,10 @@ function MyRequests() {
     }
 
     setFilteredRequests(results);
-    setCurrentPage(1); // reset pagination
+    setCurrentPage(1);
   };
 
-  // pagination calculations
+  // pagination
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredRequests.slice(
@@ -88,20 +102,44 @@ function MyRequests() {
                  text-white animate-gradient-x"
     >
       {/* Navbar */}
-      <Navbar active="my-requests" />
+      <Navbar active="requests" />
 
       {/* Page Content */}
       <main className="flex-1 px-6 py-8">
         <div className="bg-white/95 text-gray-900 rounded-2xl shadow-lg p-6 animate-fadeIn">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2
-              className="text-3xl font-extrabold 
-                         bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 
-                         bg-clip-text text-transparent"
-            >
-              My Requests
-            </h2>
+          {/* Header + Filters */}
+          <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6">
+              <h2 className="text-3xl font-extrabold bg-gradient-to-r from-teal-700 via-teal-600 to-teal-500 bg-clip-text text-transparent mb-2 sm:mb-0 transition-all duration-700 ease-in-out">
+                {viewType === "my" ? "My Requests" : "All Resource Requests"}
+              </h2>
+
+              {/* Toggle Buttons */}
+              {user?.role === "REPORTER" && (
+                <div className="flex border border-teal-300 rounded-full overflow-hidden shadow-md">
+                  <button
+                    onClick={() => setViewType("all")}
+                    className={`px-6 py-2 font-semibold transition-all duration-700 ease-in-out transform ${
+                      viewType === "all"
+                        ? "bg-teal-600 text-white scale-110 shadow-inner"
+                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                    }`}
+                  >
+                    All Requests
+                  </button>
+                  <button
+                    onClick={() => setViewType("my")}
+                    className={`px-6 py-2 font-semibold transition-all duration-700 ease-in-out transform ${
+                      viewType === "my"
+                        ? "bg-teal-600 text-white scale-110 shadow-inner"
+                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                    }`}
+                  >
+                    My Requests
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Filters */}
             <div className="flex flex-wrap gap-4 items-end">
@@ -133,7 +171,7 @@ function MyRequests() {
                   className="border p-2 rounded-lg text-gray-800"
                 >
                   <option value="None">None</option>
-                  <option value="pending">Pending</option>
+                  <option value="reported">Reported</option>
                   <option value="partial">Partial</option>
                   <option value="fulfilled">Fulfilled</option>
                 </select>
@@ -143,40 +181,38 @@ function MyRequests() {
                 onClick={handleSearch}
                 className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
               >
-                Done
+                Apply
               </button>
             </div>
           </div>
 
-          {/* Data states */}
-          {loading && <p className="text-gray-600">Loading your requests...</p>}
+          {loading && <p className="text-gray-600">Loading...</p>}
           {error && <p className="text-red-600">{error}</p>}
+
           {!loading && !error && filteredRequests.length === 0 && (
-            <p className="text-gray-600">
-              You haven’t submitted any requests yet.
-            </p>
+            <p className="text-gray-600">No requests found.</p>
           )}
 
-          {/* Requests Table */}
           {!loading && !error && filteredRequests.length > 0 && (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto transition-opacity duration-700 ease-in-out">
                 <table className="w-full table-fixed border-collapse rounded-lg overflow-hidden shadow">
                   <thead>
                     <tr className="bg-teal-600 text-white text-left text-sm uppercase tracking-wider">
-                      <th className="p-3 w-[18%]">Category</th>
-                      <th className="p-3 w-[15%]">Requested Qty</th>
-                      <th className="p-3 w-[15%]">Fulfilled Qty</th>
-                      <th className="p-3 w-[15%]">Status</th>
-                      <th className="p-3 w-[12%]">Disaster ID</th>
-                      <th className="p-3 w-[25%]">Created At</th>
+                      <th className="p-3 w-[15%]">Category</th>
+                      <th className="p-3 w-[10%]">Requested</th>
+                      <th className="p-3 w-[10%]">Fulfilled</th>
+                      <th className="p-3 w-[12%]">Status</th>
+                      <th className="p-3 w-[10%]">Disaster ID</th>
+                      <th className="p-3 w-[18%]">Created At</th>
+                      <th className="p-3 w-[25%]">Reporter</th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentItems.map((r) => (
                       <tr
                         key={r.id}
-                        className="odd:bg-gray-50 even:bg-gray-100 hover:bg-teal-50 transition"
+                        className="odd:bg-gray-50 even:bg-gray-100 hover:bg-teal-50 transition duration-500 ease-in-out"
                       >
                         <td className="p-3 font-semibold text-gray-800 capitalize truncate">
                           {r.category}
@@ -192,6 +228,9 @@ function MyRequests() {
                         <td className="p-3 text-gray-600 text-sm truncate">
                           {new Date(r.createdAt).toLocaleString()}
                         </td>
+                        <td className="p-3 text-gray-600 text-sm truncate">
+                          {r.reporterEmail}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -204,7 +243,7 @@ function MyRequests() {
                   <button
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((p) => p - 1)}
-                    className={`px-3 py-1 rounded ${
+                    className={`px-3 py-1 rounded transition duration-500 ${
                       currentPage === 1
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                         : "bg-teal-600 text-white hover:bg-teal-700"
@@ -216,9 +255,9 @@ function MyRequests() {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3 py-1 rounded ${
+                      className={`px-3 py-1 rounded transition duration-500 ${
                         currentPage === i + 1
-                          ? "bg-teal-700 text-white"
+                          ? "bg-teal-700 text-white scale-105"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                       }`}
                     >
@@ -228,7 +267,7 @@ function MyRequests() {
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage((p) => p + 1)}
-                    className={`px-3 py-1 rounded ${
+                    className={`px-3 py-1 rounded transition duration-500 ${
                       currentPage === totalPages
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                         : "bg-teal-600 text-white hover:bg-teal-700"
@@ -249,4 +288,4 @@ function MyRequests() {
   );
 }
 
-export default MyRequests;
+export default Requests;

@@ -20,7 +20,7 @@ const formatCategory = (category = "") => {
 };
 
 function Contributions() {
-  const [contributions, setContributions] = useState([]);
+  const [myContributions, setMyContributions] = useState([]);
   const [filteredContributions, setFilteredContributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,23 +33,20 @@ function Contributions() {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    const fetchReporterContributions = async () => {
+    const fetchMyContributions = async () => {
       try {
-        // Step 1: get all my requests
-        const requestsRes = await api.get("/requests/my");
-        const requests = requestsRes.data;
+        // ✅ Fetch requests created by me
+        const myReqRes = await api.get("/requests/my");
+        const myReqs = myReqRes.data;
 
-        // Step 2: for each request, get contributions
-        const allContributions = [];
-        for (let req of requests) {
+        let contribs = [];
+        for (let req of myReqs) {
           const contribRes = await api.get(`/contributions/request/${req.id}`);
-          contribRes.data.forEach((c) =>
-            allContributions.push({ ...c, requestCategory: req.category })
-          );
+          contribs = [...contribs, ...contribRes.data];
         }
 
-        setContributions(allContributions);
-        setFilteredContributions(allContributions);
+        setMyContributions(contribs);
+        setFilteredContributions(contribs);
       } catch (err) {
         console.error("Failed to fetch contributions:", err);
         setError("Could not load contributions. Please try again later.");
@@ -58,20 +55,20 @@ function Contributions() {
       }
     };
 
-    fetchReporterContributions();
+    fetchMyContributions();
   }, []);
 
   // handle filter
   const handleSearch = () => {
-    let results = contributions;
+    let base = [...myContributions];
 
     if (categoryFilter !== "None") {
-      results = results.filter(
-        (c) => c.requestCategory.toLowerCase() === categoryFilter.toLowerCase()
+      base = base.filter(
+        (c) => c.category?.toLowerCase() === categoryFilter.toLowerCase()
       );
     }
 
-    setFilteredContributions(results);
+    setFilteredContributions(base);
     setCurrentPage(1); // reset pagination on filter
   };
 
@@ -94,7 +91,7 @@ function Contributions() {
 
       <main className="flex-1 px-6 py-8">
         <div className="bg-white/95 text-gray-900 rounded-2xl shadow-lg p-6 animate-fadeIn">
-          {/* Header with filters aligned right */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <h2
               className="text-3xl font-extrabold 
@@ -128,7 +125,7 @@ function Contributions() {
                 onClick={handleSearch}
                 className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
               >
-                Done
+                Apply
               </button>
             </div>
           </div>
@@ -138,7 +135,7 @@ function Contributions() {
 
           {!loading && !error && filteredContributions.length === 0 && (
             <p className="text-gray-600">
-              No contributions match your filter. Try adjusting it.
+              No contributions to your requests yet.
             </p>
           )}
 
@@ -158,7 +155,7 @@ function Contributions() {
                   </thead>
                   <tbody>
                     {currentItems.map((c) => {
-                      const normalized = c.requestCategory?.toLowerCase();
+                      const normalized = c.category?.toLowerCase();
                       return (
                         <tr
                           key={c.id}
@@ -169,7 +166,7 @@ function Contributions() {
                           </td>
                           <td className="p-3 text-gray-800 font-medium flex items-center gap-2">
                             <span>{categoryIcons[normalized] || "📦"}</span>
-                            <span>{formatCategory(c.requestCategory)}</span>
+                            <span>{formatCategory(c.category)}</span>
                           </td>
                           <td className="p-3 text-gray-700">
                             {c.contributedQuantity}

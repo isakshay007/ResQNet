@@ -96,19 +96,19 @@ public class AdminController {
     @GetMapping("/contributions")
     @PreAuthorize("hasRole('ADMIN')")
     public List<ContributionDTO> getAllContributions() {
-        return contributionService.getAllContributions();
+        return contributionService.getAllContributions(); // direct admin access
     }
 
     @GetMapping("/contributions/request/{requestId}")
     @PreAuthorize("hasRole('ADMIN')")
     public List<ContributionDTO> getContributionsByRequest(@PathVariable Long requestId) {
-        return contributionService.getByRequest(requestId);
+        return contributionService.getByRequest(requestId); // direct admin access
     }
 
     @GetMapping("/contributions/responder/{responderEmail}")
     @PreAuthorize("hasRole('ADMIN')")
     public List<ContributionDTO> getContributionsByResponder(@PathVariable String responderEmail) {
-        return contributionService.getByResponder(responderEmail);
+        return contributionService.getByResponder(responderEmail); // direct admin access
     }
 
     @DeleteMapping("/contributions/{id}")

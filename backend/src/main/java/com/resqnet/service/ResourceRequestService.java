@@ -65,14 +65,14 @@ public class ResourceRequestService {
         return response;
     }
 
-    // --- READ all (Admin/Responder only) ---
+    // --- READ all (Admin, Responder, Reporter) ---
     public List<ResourceRequestDTO> getAllRequests() {
         return resourceRequestRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .toList();
     }
 
-    // --- READ one ---
+    // --- READ one (global) ---
     public ResourceRequestDTO getRequestById(Long id) {
         return resourceRequestRepository.findById(id)
                 .map(this::mapToDTO)
@@ -156,7 +156,7 @@ public class ResourceRequestService {
         reporterNotif.setRecipientEmail(reporterEmail);
         reporterNotif.setMessage("Your request for " + request.getRequestedQuantity() +
                 " units of " + request.getCategory() + " has been created.");
-        reporterNotif.setType("REQUEST");
+        reporterNotif.setType("REQUEST_CREATE");
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
 
@@ -166,7 +166,7 @@ public class ResourceRequestService {
                 .forEach(responder -> {
                     NotificationDTO responderNotif = new NotificationDTO();
                     responderNotif.setRecipientEmail(responder.getEmail());
-                    responderNotif.setMessage(" New request for " + request.getCategory() +
+                    responderNotif.setMessage("New request for " + request.getCategory() +
                             " (" + request.getRequestedQuantity() + " units).");
                     responderNotif.setType("REQUEST_ALERT");
                     responderNotif.setDeletable(true);
@@ -175,7 +175,7 @@ public class ResourceRequestService {
 
         // Admin broadcast
         NotificationDTO adminNotif = new NotificationDTO();
-        adminNotif.setMessage(" New request created by " + reporterEmail +
+        adminNotif.setMessage("New request created by " + reporterEmail +
                 " for " + request.getCategory() + " (" + request.getRequestedQuantity() + ")");
         adminNotif.setType("ADMIN_LOG");
         adminNotif.setDeletable(false);
@@ -189,7 +189,7 @@ public class ResourceRequestService {
         // Reporter
         NotificationDTO reporterNotif = new NotificationDTO();
         reporterNotif.setRecipientEmail(reporterEmail);
-        reporterNotif.setMessage(" Your request #" + request.getId() + " has been updated by Admin.");
+        reporterNotif.setMessage("Your request #" + request.getId() + " has been updated by Admin.");
         reporterNotif.setType("REQUEST_UPDATE");
         reporterNotif.setDeletable(true);
         notificationProducer.sendNotification(reporterNotif);
