@@ -6,6 +6,8 @@ import com.resqnet.dto.UserDTO;
 import com.resqnet.model.User;
 import com.resqnet.service.UserService;
 import com.resqnet.security.JwtUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +17,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+        origins = {
+            "https://res-q-net-jf93.vercel.app",
+            "http://localhost:3000"             
+        },
+        allowCredentials = "true"
+)
+@Tag(name = "Authentication")
 public class AuthController {
 
     private final UserService userService;
@@ -28,39 +37,49 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    // --- Register new user (Reporter/Responder only, not Admin) ---
+    @Operation(summary = "Register a new Reporter or Responder account")
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest dto) {
         try {
             if (dto.getRole() == User.Role.ADMIN) {
-                return ResponseEntity.badRequest().body("Admin accounts cannot be self-registered");
+                return ResponseEntity.badRequest().body(Map.of("error", "Admin accounts cannot be self-registered"));
             }
 
             UserDTO saved = userService.createUser(dto);
-            return ResponseEntity.ok(saved);
+            return ResponseEntity.ok(Map.of(
+                    "message", "User registered successfully",
+                    "user", saved
+            ));
 
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
     }
 
-    // --- Login user ---
+    @Operation(summary = "Login and receive a JWT token")
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest dto) {
         User user = userService.findByEmail(dto.getEmail());
 
         if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(401).body("Invalid email or password");
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
         }
 
         // ⚡ IMPORTANT: Pass plain role name (REPORTER / RESPONDER / ADMIN)
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
         return ResponseEntity.ok(Map.of(
+                "message", "Login successful",
                 "token", token,
                 "role", user.getRole().name(),
                 "email", user.getEmail(),
                 "name", user.getName()
         ));
+    }
+
+    @Operation(summary = "CORS preflight handler", hidden = true)
+    @RequestMapping(value = "/**", method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        return ResponseEntity.ok().build();
     }
 }

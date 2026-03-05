@@ -10,11 +10,14 @@ import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.ResourceRequestRepository;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ResourceRequestService {
@@ -34,7 +37,7 @@ public class ResourceRequestService {
         this.notificationProducer = notificationProducer;
     }
 
-    // --- CREATE request (Reporter only) ---
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public ResourceRequestDTO createRequest(ResourceRequestDTO dto, String reporterEmail) {
         User reporter = userRepository.findByEmail(reporterEmail)
@@ -65,11 +68,11 @@ public class ResourceRequestService {
         return response;
     }
 
-    // --- READ all (Admin, Responder, Reporter) ---
+    @Cacheable("requests")
     public List<ResourceRequestDTO> getAllRequests() {
         return resourceRequestRepository.findAll().stream()
                 .map(this::mapToDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     // --- READ one (global) ---
@@ -98,7 +101,7 @@ public class ResourceRequestService {
         return mapToDTO(req);
     }
 
-    // --- UPDATE request (Admin only) ---
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public ResourceRequestDTO updateRequest(ResourceRequestDTO dto) {
         ResourceRequest request = resourceRequestRepository.findById(dto.getId())
@@ -122,7 +125,7 @@ public class ResourceRequestService {
         return mapToDTO(updated);
     }
 
-    // --- DELETE request (Admin only) ---
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public void deleteRequest(Long id) {
         ResourceRequest req = resourceRequestRepository.findById(id)

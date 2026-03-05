@@ -13,7 +13,7 @@ import "leaflet/dist/leaflet.css";
 import ReportDisasterForm from "./ReportDisasterForm";
 import ResourceRequestForm from "./ResourceRequestForm";
 import ModalWrapper from "./ModalWrapper.jsx";
-import axios from "axios";
+import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { getDisasterIcon, reporterIcon, responderIcon } from "./mapIcons.js";
 import MapLegend from "./MapLegend";
@@ -61,9 +61,7 @@ function ReporterMapView() {
   // === API Calls ===
   const fetchDisasters = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/api/disasters", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/disasters");
       setDisasters(res.data);
     } catch (err) {
       console.error("Failed to fetch disasters:", err);
@@ -73,21 +71,15 @@ function ReporterMapView() {
   const fetchRequestsAndContributions = async () => {
     try {
       // Reporter’s own requests
-      const myReqRes = await axios.get("http://localhost:8080/api/requests/my", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const myReqRes = await api.get("/requests/my");
       setMyRequests(myReqRes.data);
 
       // All requests (reporters are allowed to view global list too)
-      const allReqRes = await axios.get("http://localhost:8080/api/requests", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const allReqRes = await api.get("/requests");
       setAllRequests(allReqRes.data);
 
       // All contributions (backend filters by reporter’s scope automatically)
-      const contribRes = await axios.get("http://localhost:8080/api/contributions", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const contribRes = await api.get("/contributions");
       setContributions(contribRes.data);
     } catch (err) {
       console.error("Failed to fetch requests/contributions:", err);

@@ -9,7 +9,7 @@ import {
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import axios from "axios";
+import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import ModalWrapper from "./ModalWrapper.jsx";
 import ContributionForm from "./ContributionForm";
@@ -54,9 +54,7 @@ function ResponderMapView() {
   // === API Calls ===
   const fetchDisasters = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/api/disasters", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/disasters");
       setDisasters(res.data);
     } catch (err) {
       console.error("Failed to fetch disasters:", err);
@@ -65,9 +63,7 @@ function ResponderMapView() {
 
   const fetchRequests = async () => {
     try {
-      const res = await axios.get("http://localhost:8080/api/requests", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/requests");
       setRequests(res.data);
     } catch (err) {
       console.error("Failed to fetch requests:", err);
@@ -76,10 +72,7 @@ function ResponderMapView() {
 
   const fetchContributionsForRequest = async (requestId) => {
     try {
-      const res = await axios.get(
-        `http://localhost:8080/api/contributions/request/${requestId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.get(`/contributions/request/${requestId}`);
       return res.data;
     } catch (err) {
       console.error(`Failed to fetch contributions for request ${requestId}:`, err);

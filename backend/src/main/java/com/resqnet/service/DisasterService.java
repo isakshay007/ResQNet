@@ -8,11 +8,14 @@ import com.resqnet.producer.NotificationProducer;
 import com.resqnet.repository.DisasterRepository;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DisasterService {
@@ -29,7 +32,7 @@ public class DisasterService {
         this.notificationProducer = notificationProducer;
     }
 
-    // --- CREATE disaster (only REPORTER) ---
+    @CacheEvict(value = {"disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public DisasterDTO createDisaster(DisasterDTO dto, String reporterEmail) {
         User reporter = userRepository.findByEmail(reporterEmail)
@@ -88,11 +91,11 @@ public class DisasterService {
         return mapToDTO(saved);
     }
 
-    // --- READ: Get all disasters ---
+    @Cacheable("disasters")
     public List<DisasterDTO> getAllDisasters() {
         return disasterRepository.findAll().stream()
                 .map(this::mapToDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     // --- READ: Get single disaster ---
@@ -102,7 +105,7 @@ public class DisasterService {
                 .orElseThrow(() -> new EntityNotFoundException("Disaster not found"));
     }
 
-    // --- UPDATE disaster (Admin only) ---
+    @CacheEvict(value = {"disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public DisasterDTO updateDisaster(DisasterDTO dto) {
         Disaster disaster = disasterRepository.findById(dto.getId())
@@ -138,7 +141,7 @@ public class DisasterService {
         return mapToDTO(updated);
     }
 
-    // --- DELETE disaster (Admin only) ---
+    @CacheEvict(value = {"disasters", "requests", "adminSummary"}, allEntries = true)
     @Transactional
     public void deleteDisaster(Long id) {
         Disaster disaster = disasterRepository.findById(id)

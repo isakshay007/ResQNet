@@ -1,9 +1,10 @@
 // src/pages/Notifications.jsx
-import React, { useEffect, useState } from "react";
-import api from "../utils/api"; // axios wrapper
+import React, { useEffect, useState, useCallback } from "react";
+import api from "../utils/api";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
+import { useWebSocket } from "../hooks/useWebSocket";
 import { FiAlertCircle, FiBell, FiInfo } from "react-icons/fi";
 
 function Notifications() {
@@ -15,7 +16,6 @@ function Notifications() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch all notifications for logged-in user
   const fetchNotifications = async () => {
     try {
       const res = await api.get("/notifications");
@@ -26,6 +26,16 @@ function Notifications() {
       setLoading(false);
     }
   };
+
+  const handleNewNotification = useCallback((notification) => {
+    setNotifications((prev) => {
+      if (prev.some((n) => n.id === notification.id)) return prev;
+      return [notification, ...prev];
+    });
+    setCurrentPage(1);
+  }, []);
+
+  useWebSocket(handleNewNotification);
 
   const markAsRead = async (id) => {
     try {

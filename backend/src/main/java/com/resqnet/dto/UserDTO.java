@@ -5,11 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import com.resqnet.model.User;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class UserDTO {
+public class UserDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    @JsonProperty(access = Access.READ_ONLY) // id is only returned, never set by frontend
+    @JsonProperty(access = Access.READ_ONLY)
     private Long id;
 
     private String name;

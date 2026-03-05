@@ -10,6 +10,7 @@ import com.resqnet.repository.ContributionRepository;
 import com.resqnet.repository.ResourceRequestRepository;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +36,7 @@ public class ContributionService {
         this.notificationProducer = notificationProducer;
     }
 
-    // ---------------- CREATE ----------------
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public ContributionDTO createContribution(ContributionDTO dto, String responderEmail) {
         ResourceRequest request = requestRepository.findByIdForUpdate(dto.getRequestId())
@@ -153,7 +154,7 @@ public class ContributionService {
                 .map(this::mapToDTO).toList();
     }
 
-    // ---------------- DELETE ----------------
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public void deleteContribution(Long id) {
         Contribution contribution = contributionRepository.findById(id)
@@ -169,6 +170,7 @@ public class ContributionService {
         sendContributionDeletionNotifications(contribution);
     }
 
+    @CacheEvict(value = {"requests", "disasters", "adminSummary"}, allEntries = true)
     @Transactional
     public void deleteContributionWithSecurity(Long id, String userEmail) {
         Contribution contribution = contributionRepository.findById(id)

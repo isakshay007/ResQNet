@@ -1,6 +1,6 @@
 // src/components/MapView/ResourceRequestForm.jsx
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { FiPackage } from "react-icons/fi";
 import toast from "react-hot-toast";
@@ -32,12 +32,7 @@ function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:8080/api/requests", data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await api.post("/requests", data);
 
       if (onSuccess) onSuccess(res.data);
 

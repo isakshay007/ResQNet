@@ -2,6 +2,8 @@ package com.resqnet.controller;
 
 import com.resqnet.dto.DisasterDTO;
 import com.resqnet.service.DisasterService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/disasters")
 @CrossOrigin(origins = "*")
+@Tag(name = "Disasters")
 public class DisasterController {
 
     private final DisasterService disasterService;
@@ -22,7 +25,7 @@ public class DisasterController {
         this.disasterService = disasterService;
     }
 
-    // ---------------- REPORTER ----------------
+    @Operation(summary = "Report a new disaster (Reporter only)")
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
     public ResponseEntity<DisasterDTO> createDisaster(@Valid @RequestBody DisasterDTO dto,
@@ -32,7 +35,7 @@ public class DisasterController {
                              .body(created);
     }
 
-    // ---------------- COMMON: Reporter, Responder, Admin ----------------
+    @Operation(summary = "Get all disasters")
     @GetMapping
     @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
     public List<DisasterDTO> getAllDisasters(Authentication auth) {
@@ -40,13 +43,14 @@ public class DisasterController {
         return disasterService.getAllDisasters();
     }
 
+    @Operation(summary = "Get a disaster by ID")
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
     public DisasterDTO getDisasterById(@PathVariable Long id, Authentication auth) {
         return disasterService.getDisasterById(id);
     }
 
-    // ---------------- ADMIN ONLY ----------------
+    @Operation(summary = "Update a disaster (Admin only)")
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public DisasterDTO updateDisaster(@PathVariable Long id,
@@ -55,6 +59,7 @@ public class DisasterController {
         return disasterService.updateDisaster(dto);
     }
 
+    @Operation(summary = "Delete a disaster (Admin only)")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteDisaster(@PathVariable Long id) {

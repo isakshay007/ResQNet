@@ -6,10 +6,13 @@ import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import com.resqnet.model.ResourceRequest;
 import jakarta.validation.constraints.*;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ResourceRequestDTO {
+public class ResourceRequestDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long id;
 
     @NotBlank(message = "Category is required")

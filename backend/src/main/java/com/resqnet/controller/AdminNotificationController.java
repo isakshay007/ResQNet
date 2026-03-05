@@ -2,6 +2,8 @@ package com.resqnet.controller;
 
 import com.resqnet.dto.NotificationDTO;
 import com.resqnet.service.NotificationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,7 +12,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/notifications")
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasRole('ADMIN')") // applies to all endpoints
+@PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin Notifications")
 public class AdminNotificationController {
 
     private final NotificationService service;
@@ -19,13 +22,13 @@ public class AdminNotificationController {
         this.service = service;
     }
 
-    //  Get all admin broadcast/system notifications
+    @Operation(summary = "Get all admin broadcast notifications")
     @GetMapping
     public List<NotificationDTO> getAdminNotifications() {
         return service.getAdminNotifications();
     }
 
-    //  Delete an admin broadcast notification (admin override)
+    @Operation(summary = "Delete an admin broadcast notification")
     @DeleteMapping("/{id}")
     public void deleteNotification(@PathVariable Long id) {
         service.deleteNotification(id, null, true); // pass null email, override as admin

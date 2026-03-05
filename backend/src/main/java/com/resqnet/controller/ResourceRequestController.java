@@ -2,6 +2,8 @@ package com.resqnet.controller;
 
 import com.resqnet.dto.ResourceRequestDTO;
 import com.resqnet.service.ResourceRequestService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/requests")
 @CrossOrigin(origins = "*")
+@Tag(name = "Resource Requests")
 public class ResourceRequestController {
 
     private final ResourceRequestService service;
@@ -22,9 +25,7 @@ public class ResourceRequestController {
         this.service = service;
     }
 
-    // ---------------- REPORTER ----------------
-
-    // Create new request
+    @Operation(summary = "Create a resource request (Reporter only)")
     @PostMapping
     @PreAuthorize("hasRole('REPORTER')")
     public ResponseEntity<ResourceRequestDTO> createRequest(
@@ -35,37 +36,35 @@ public class ResourceRequestController {
                              .body(created);
     }
 
-    // View only their own requests
+    @Operation(summary = "Get current reporter's own requests")
     @GetMapping("/my")
     @PreAuthorize("hasRole('REPORTER')")
     public List<ResourceRequestDTO> getMyRequests(Authentication auth) {
         return service.getRequestsForReporter(auth.getName());
     }
 
+    @Operation(summary = "Get a specific request owned by the current reporter")
     @GetMapping("/my/{id:[0-9]+}")
     @PreAuthorize("hasRole('REPORTER')")
     public ResourceRequestDTO getMyRequestById(@PathVariable Long id, Authentication auth) {
         return service.getRequestByIdForReporter(id, auth.getName());
     }
 
-    // ---------------- COMMON (Reporter, Responder, Admin) ----------------
-
-    // Everyone authenticated can view all requests (summary/global)
+    @Operation(summary = "Get all resource requests")
     @GetMapping
     @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
     public List<ResourceRequestDTO> getAllRequests() {
         return service.getAllRequests();
     }
 
+    @Operation(summary = "Get a resource request by ID")
     @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyRole('REPORTER','RESPONDER','ADMIN')")
     public ResourceRequestDTO getRequestById(@PathVariable Long id) {
         return service.getRequestById(id);
     }
 
-    // ---------------- ADMIN ----------------
-
-    // Update any request
+    @Operation(summary = "Update a resource request (Admin only)")
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResourceRequestDTO updateRequest(@PathVariable Long id,
@@ -74,7 +73,7 @@ public class ResourceRequestController {
         return service.updateRequest(dto);
     }
 
-    // Delete any request
+    @Operation(summary = "Delete a resource request (Admin only)")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {

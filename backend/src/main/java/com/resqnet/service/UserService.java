@@ -7,11 +7,14 @@ import com.resqnet.model.User;
 import com.resqnet.producer.NotificationProducer;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -28,7 +31,7 @@ public class UserService {
         this.notificationProducer = notificationProducer;
     }
 
-    // --- Create a new user (REPORTER or RESPONDER only) ---
+    @CacheEvict(value = {"users", "adminSummary"}, allEntries = true)
     @Transactional
     public UserDTO createUser(UserCreateRequest req) {
         if (req.getRole() == User.Role.ADMIN) {
@@ -58,11 +61,11 @@ public class UserService {
         return dto;
     }
 
-    // --- Get all users ---
+    @Cacheable("users")
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::mapToDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     // --- Get user by id ---
@@ -72,7 +75,7 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 
-    // --- Update user (Admin only) ---
+    @CacheEvict(value = {"users", "adminSummary"}, allEntries = true)
     @Transactional
     public UserDTO updateUser(UserDTO dto) {
         User user = userRepository.findById(dto.getId())
@@ -88,7 +91,7 @@ public class UserService {
         return mapToDTO(userRepository.save(user));
     }
 
-    // --- Delete user (Admin only) ---
+    @CacheEvict(value = {"users", "disasters", "requests", "adminSummary"}, allEntries = true)
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)

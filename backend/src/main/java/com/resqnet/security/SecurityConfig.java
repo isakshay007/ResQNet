@@ -43,9 +43,11 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()    // login + register are public
-                .requestMatchers("/api/admin/**").hasRole("ADMIN") // ADMIN-only endpoints
-                .requestMatchers("/api/**").authenticated()     // all other APIs need JWT
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

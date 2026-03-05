@@ -5,10 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import jakarta.validation.constraints.*;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class DisasterDTO {
+public class DisasterDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long id;
 
     @NotBlank(message = "Disaster type is required")

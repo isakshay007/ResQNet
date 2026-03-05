@@ -1,206 +1,341 @@
-# 🌍 ResQNet – Disaster Relief Management System
+# ResQNet – Disaster Relief Management System
 
-ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are **faster, smarter, and safer**.
-
----
-
-##  Key Features
-
-###  Backend (Spring Boot)
-- **JWT Authentication & Role-based Access**
-  - Roles: `REPORTER`, `RESPONDER`, `ADMIN`.
-  - Secure APIs with Spring Security + BCrypt password hashing.
-- **Domain Models**
-  - `User`, `Disaster`, `ResourceRequest`, `Contribution`, `Notification`.
-- **Business Logic Services**
-  - Handles disaster reporting, request creation, contribution tracking, and notification dispatch.
-- **Event-Driven Notifications**
-  - Apache **Kafka** publishes and consumes system notifications asynchronously.
-- **Admin Dashboard**
-  - User, Disaster, Request, Contribution, Notification management.
-  - Summary statistics for system monitoring.
-- **Validation & Exception Handling**
-  - Input validation via Jakarta.
-  - Global exception handler with consistent error responses.
-- **Database**
-  - JPA/Hibernate entities mapped to PostgreSQL (configurable).
+ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are faster, smarter, and safer.
 
 ---
 
-###  Frontend (React + TailwindCSS)
-- **Authentication**
-  - Login & Register (Reporter/Responder).
-  - Role-based routing with `ProtectedRoute`.
-- **Dashboards**
-  - **Reporter** → Manage disasters, requests, and contributions.  
-  - **Responder** → View all open requests and manage own contributions.  
-  - **Admin** → Full system control with dashboard, maps, charts, and CRUD operations.
-- **Interactive Maps (Leaflet)**
-  - Disaster markers with category/status icons.
-  - Reporter & Responder views for geolocation-based interaction.
-- **Data Visualization**
-  - Admin Summary with **Chart.js** (Pie charts with datalabels).
-- **Tables with Filters & Pagination**
-  - Disasters, Requests, Contributions, Users, Notifications.
-- **Notifications**
-  - View, mark as read, delete.
-  - Auto-refresh every 60 seconds.
-- **Modern UI**
-  - Tailwind CSS gradients, custom animations, responsive layouts.
+## Key Features
+
+### Backend (Spring Boot)
+- **JWT Authentication & Role-based Access** — Roles: `REPORTER`, `RESPONDER`, `ADMIN` with Spring Security + BCrypt password hashing
+- **Domain Models** — `User`, `Disaster`, `ResourceRequest`, `Contribution`, `Notification`
+- **Business Logic Services** — Disaster reporting, request creation, contribution tracking with pessimistic locking, and notification dispatch
+- **Event-Driven Notifications** — Apache Kafka publishes and consumes system notifications asynchronously
+- **Real-Time WebSocket Push** — STOMP over WebSocket pushes notifications to connected clients instantly after Kafka consumption
+- **Redis Caching** — `@Cacheable` / `@CacheEvict` on disasters, requests, users, and admin summary with JSON serialization and 10-minute TTL
+- **API Documentation** — Swagger UI powered by springdoc-openapi with JWT "Authorize" button
+- **Admin Dashboard** — User, Disaster, Request, Contribution, Notification management with aggregated summary statistics
+- **Validation & Exception Handling** — Jakarta validation with a global exception handler
+- **Unit Tests** — 38 tests using JUnit 5 + Mockito with JaCoCo coverage reports
+- **CI/CD** — GitHub Actions pipeline with PostgreSQL service container, automated build/test, and coverage artifact upload
+
+### Frontend (React + Tailwind CSS)
+- **Authentication** — Login & Register (Reporter/Responder) with role-based routing via `ProtectedRoute`
+- **Dashboards** — Reporter (manage disasters/requests), Responder (view requests/contribute), Admin (full system control with maps, charts, CRUD)
+- **Interactive Maps** — Leaflet.js with disaster markers, category/status icons, and geolocation-based interaction
+- **Data Visualization** — Chart.js pie charts with datalabels for admin summary
+- **Real-Time Notifications** — WebSocket-connected feed that prepends new notifications without page refresh, plus REST API for initial load
+- **Tables with Filters & Pagination** — Disasters, Requests, Contributions, Users, Notifications
 
 ---
 
-##  Tech Stack
+## Tech Stack
 
-### **Backend**
-- **Framework**: Spring Boot 3.x  
-- **Security**: Spring Security, JWT, BCrypt  
-- **Database**: PostgreSQL (JPA/Hibernate ORM)  
-- **Messaging**: Apache Kafka, Spring Kafka  
-- **Validation**: Jakarta Validation API  
-- **Build Tool**: Maven  
-- **Language**: Java 17+  
+### Backend
+| Technology | Purpose |
+|---|---|
+| Java 17 | Language |
+| Spring Boot 3.5 | Application framework |
+| Spring Security + JWT | Authentication & authorization |
+| PostgreSQL | Relational database (JPA/Hibernate ORM) |
+| Apache Kafka | Asynchronous event-driven notifications |
+| Spring WebSocket (STOMP) | Real-time notification push |
+| Redis 7 | Caching layer with JSON serialization |
+| springdoc-openapi 2.5 | Swagger UI & OpenAPI 3 documentation |
+| JUnit 5 + Mockito | Unit testing |
+| JaCoCo | Code coverage reporting |
+| Maven | Build tool |
+| Docker | Containerization |
 
-### **Frontend**
-- **Framework**: React 18  
-- **Styling**: Tailwind CSS, custom animations  
-- **Routing**: React Router v6  
-- **State/Auth**: React Context API (`AuthContext`)  
-- **Charts**: Chart.js + chartjs-plugin-datalabels  
-- **Maps**: Leaflet + react-leaflet  
-- **Icons**: React Icons (Feather)  
-- **Notifications**: react-hot-toast  
-- **HTTP Client**: Axios (with interceptors for JWT)  
-- **Build Tool**: Vite  
+### Frontend
+| Technology | Purpose |
+|---|---|
+| React 18 | UI framework |
+| Vite | Build tool |
+| Tailwind CSS | Styling |
+| React Router v6 | Client-side routing |
+| React Context API | State management (`AuthContext`) |
+| @stomp/stompjs | WebSocket STOMP client |
+| Leaflet + react-leaflet | Interactive maps |
+| Chart.js | Data visualization |
+| Axios | HTTP client with JWT interceptors |
+| Framer Motion | Animations |
+| react-hot-toast | Toast notifications |
 
 ---
 
-##  System Architecture
+## System Architecture
 
-```plaintext
-Frontend (React + Tailwind) ↔ Backend (Spring Boot REST APIs) ↔ PostgreSQL
-                                   │
-                                   └── Apache Kafka (async notifications)
+```
+Frontend (React + Tailwind)
+    |
+    |--- REST API (Axios + JWT) ---> Spring Boot Backend (port 8080)
+    |                                     |
+    |--- WebSocket (STOMP) ------------->|
+                                          |
+                    +---------------------+---------------------+
+                    |                     |                     |
+               PostgreSQL            Apache Kafka            Redis
+              (persistence)        (async messaging)        (caching)
+                                          |
+                                   NotificationConsumer
+                                     |           |
+                              Save to DB    Push via WebSocket
 ```
 
-- **Reporter** → Reports disasters, raises resource requests.  
-- **Responder** → Views requests, contributes resources.  
-- **Admin** → Manages users, disasters, requests, contributions, and monitors system health.  
-- **Notifications** → Triggered on every action (disaster, request, contribution). Published via Kafka, consumed and persisted, then fetched by users.
+- **Reporter** — Reports disasters, raises resource requests
+- **Responder** — Views requests, contributes resources (with pessimistic locking for concurrency)
+- **Admin** — Manages users, disasters, requests, contributions, and monitors system health
+- **Notifications** — Triggered on every action, published via Kafka, consumed and persisted to DB, then pushed to connected clients via WebSocket in real-time
 
 ---
 
-##  Installation & Setup
+## Prerequisites
 
-###  Backend Setup
+- Java 17+
+- Node.js 18+
+- Docker & Docker Compose
+
+---
+
+## Quick Start (Docker Compose)
+
+The fastest way to run the entire stack:
+
 ```bash
-# Clone repo
 git clone https://github.com/your-repo/resqnet.git
-cd resqnet/backend
+cd resqnet
 
-# Configure PostgreSQL (application.properties)
-spring.datasource.url=jdbc:postgresql://localhost:5432/resqnet
-spring.datasource.username=postgres
-spring.datasource.password=yourpassword
+# Start all services (Postgres, Kafka, Zookeeper, Redis, Backend)
+docker compose up --build
 
-# Start Kafka/Zookeeper locally (example with Docker)
-docker-compose up -d
-
-# Run backend
-mvn spring-boot:run
-```
-
-Backend will run on **http://localhost:8080/api**
-
----
-
-###  Frontend Setup
-```bash
-cd ../frontend
-
-# Install dependencies
+# In a separate terminal, start the frontend
+cd frontend
 npm install
-
-# Run development server
 npm run dev
 ```
 
-Frontend will run on **http://localhost:5173**
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8080/api |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| OpenAPI JSON | http://localhost:8080/api-docs |
 
 ---
 
-##  API Endpoints (High-Level)
+## Local Development Setup
+
+If you prefer running the backend outside Docker (for hot-reload / debugging):
+
+### 1. Start Infrastructure
+
+```bash
+# Start only Postgres, Kafka, Zookeeper, Redis
+docker compose up postgres kafka zookeeper redis
+```
+
+### 2. Run Backend
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+The backend connects to `localhost` for all services by default (`application.properties`).
+
+### 3. Run Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Run Tests
+
+```bash
+cd backend
+mvn test
+```
+
+Tests are pure unit tests (Mockito + WebMvcTest) — no running database, Kafka, or Redis required.
+
+---
+
+## API Documentation
+
+Swagger UI is available at **http://localhost:8080/swagger-ui.html** when the backend is running.
+
+All endpoints are organized by controller tags:
+
+| Tag | Base Path | Description |
+|---|---|---|
+| Authentication | `/api/auth` | Register, Login |
+| Users | `/api/users` | User CRUD (Admin) |
+| Disasters | `/api/disasters` | Disaster reporting & management |
+| Resource Requests | `/api/requests` | Resource request lifecycle |
+| Contributions | `/api/contributions` | Resource contribution tracking |
+| Notifications | `/api/notifications` | User notification feed |
+| Admin | `/api/admin` | Admin CRUD & dashboard summary |
+| Admin Notifications | `/api/admin/notifications` | Admin broadcast notifications |
+
+Use the **Authorize** button in Swagger UI to enter your JWT token for authenticated endpoints.
+
+---
+
+## API Endpoints
 
 ### Auth
-- `POST /api/auth/register` → Register Reporter/Responder.
-- `POST /api/auth/login` → Login, returns JWT.
+- `POST /api/auth/register` — Register Reporter/Responder
+- `POST /api/auth/login` — Login, returns JWT
 
 ### Disasters
-- `POST /api/disasters` (Reporter).
-- `GET /api/disasters` (All).
-- `PUT/DELETE /api/disasters/{id}` (Admin).
+- `POST /api/disasters` — Report a disaster (Reporter)
+- `GET /api/disasters` — List all disasters
+- `GET /api/disasters/{id}` — Get disaster by ID
+- `PUT /api/disasters/{id}` — Update disaster (Admin)
+- `DELETE /api/disasters/{id}` — Delete disaster (Admin)
 
-### Requests
-- `POST /api/requests` (Reporter).
-- `GET /api/requests` (All).
-- `PUT/DELETE /api/requests/{id}` (Admin).
+### Resource Requests
+- `POST /api/requests` — Create request (Reporter)
+- `GET /api/requests` — List all requests
+- `GET /api/requests/my` — Reporter's own requests
+- `PUT /api/requests/{id}` — Update request (Admin)
+- `DELETE /api/requests/{id}` — Delete request (Admin)
 
 ### Contributions
-- `POST /api/contributions` (Responder).
-- `GET /api/contributions/responder/{email}`.
-- `DELETE /api/contributions/{id}` (Admin).
+- `POST /api/contributions` — Create contribution (Responder)
+- `GET /api/contributions` — List contributions (role-filtered)
+- `GET /api/contributions/request/{requestId}` — By request
+- `GET /api/contributions/responder/{email}` — By responder
+- `DELETE /api/contributions/{id}` — Delete (Admin/Responder)
 
 ### Notifications
-- `GET /api/notifications` (User-specific).
-- `PUT /api/notifications/{id}/read`.
-- `DELETE /api/notifications/{id}`.
+- `GET /api/notifications` — User's notifications
+- `GET /api/notifications/unread` — Unread only
+- `PUT /api/notifications/{id}/read` — Mark as read
+- `DELETE /api/notifications/{id}` — Delete
 
 ### Admin
-- `GET /api/admin/summary` → Dashboard counts.
-- CRUD: Users, Disasters, Requests, Contributions, Notifications.
+- `GET /api/admin/summary` — Dashboard statistics
+- Full CRUD for disasters, requests, users, contributions, notifications under `/api/admin/`
+
+### WebSocket
+- Endpoint: `ws://localhost:8080/ws` (STOMP)
+- Subscribe: `/queue/notifications/{email}` (personal), `/topic/notifications/admin` (admin broadcast)
 
 ---
 
-##  Frontend Pages
+## Testing
+
+### Test Suite
+
+| Test Class | Type | Tests |
+|---|---|---|
+| `UserServiceTest` | Mockito unit test | 6 |
+| `DisasterServiceTest` | Mockito unit test | 5 |
+| `ResourceRequestServiceTest` | Mockito unit test | 5 |
+| `ContributionServiceTest` | Mockito unit test | 5 |
+| `NotificationServiceTest` | Mockito unit test | 7 |
+| `AuthControllerTest` | WebMvcTest (Spring slice) | 4 |
+| `JwtUtilTest` | Plain JUnit 5 | 5 |
+| `BackendApplicationTests` | Plain JUnit 5 | 1 |
+| **Total** | | **38** |
+
+### Running Tests
+
+```bash
+cd backend
+mvn test
+```
+
+No external services required — all dependencies are mocked.
+
+### Coverage Report
+
+JaCoCo generates a coverage report during `mvn test`:
+
+```bash
+open backend/target/site/jacoco/index.html
+```
+
+---
+
+## CI/CD
+
+GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR to `main` or `master`:
+
+1. **Checkout** repository
+2. **Set up** JDK 17 (Temurin) with Maven dependency caching
+3. **Compile** the backend
+4. **Run tests** against a PostgreSQL 14 service container
+5. **Generate** JaCoCo coverage report
+6. **Upload** coverage report as a build artifact
+7. **Print** test results summary
+
+---
+
+## Docker
+
+### Dockerfile (Backend)
+
+Multi-stage build in `backend/Dockerfile`:
+- **Build stage** — `eclipse-temurin:17-jdk-alpine`, Maven dependency caching, `mvn package`
+- **Runtime stage** — `eclipse-temurin:17-jre-alpine`, runs the fat JAR on port 8080
+
+### Docker Compose Services
+
+| Service | Image | Port |
+|---|---|---|
+| `postgres` | postgres:14 | 5432 |
+| `zookeeper` | confluentinc/cp-zookeeper:7.6.1 | 2181 |
+| `kafka` | confluentinc/cp-kafka:7.6.1 | 9092 (host) / 29092 (internal) |
+| `redis` | redis:7 | 6379 |
+| `backend` | Built from `backend/Dockerfile` | 8080 |
+
+Kafka uses dual listeners: `EXTERNAL://localhost:9092` for host access, `INTERNAL://kafka:29092` for inter-container communication.
+
+---
+
+## Frontend Pages
 
 ### Reporter
-- `MyDisasters` – View & filter own disasters.  
-- `MyRequests` – Track own requests (pending, partial, fulfilled).  
-- `Contributions` – See contributions responders made to reporter’s requests.  
-- `Dashboard (ReporterMapView)` – Map-based disaster/request management.  
+- **My Disasters** — View & filter own disasters
+- **My Requests** — Track own requests (pending, partial, fulfilled)
+- **Contributions** — See contributions responders made to reporter's requests
+- **Dashboard (ReporterMapView)** — Map-based disaster/request management
 
 ### Responder
-- `AllRequests` – Browse all open requests, filter by category/status.  
-- `MyContributions` – View own contributions.  
-- `Dashboard (ResponderMapView)` – Map-based contribution system.  
+- **All Requests** — Browse all open requests, filter by category/status
+- **My Contributions** — View own contributions
+- **Dashboard (ResponderMapView)** — Map-based contribution system
 
 ### Admin
-- `Dashboard` – Quick access to all management features.  
-- `Map Dashboard` – Map with disaster, request, and contribution visualization.  
-- `Manage Users` – View/delete users.  
-- `Manage Disasters` – View/filter/delete disasters.  
-- `Manage Requests` – View/filter/delete requests.  
-- `Manage Contributions` – View/filter/delete contributions.  
-- `Manage Notifications` – Admin broadcast and system notifications.  
-- `Summary` – Charts showing request statuses, user role breakdown.  
+- **Dashboard** — Quick access to all management features
+- **Map Dashboard** — Map with disaster, request, and contribution visualization
+- **Manage Users / Disasters / Requests / Contributions / Notifications** — Full CRUD with filters and pagination
+- **Summary** — Charts showing request statuses, user role breakdown
 
 ### Shared
-- `Login`, `Register`, `Welcome`.  
-- `Notifications` – User-specific feed (mark read/delete).  
-- `Footer` (always visible).  
+- Login, Register, Welcome
+- Notifications — Real-time feed with WebSocket + REST fallback
+- Footer (always visible)
 
 ---
 
-##  Future Enhancements
-- Real-time notifications via WebSockets (instead of polling).  
-- Disaster/request/contribution **edit forms** (not just delete).  
-- Bulk export (CSV/Excel) for admin reports.  
-- Clustering markers on the map for scalability.  
-- Password reset & email verification.  
-- Deployment-ready Docker images for both frontend & backend.  
+## Future Enhancements
+
+- Disaster/request/contribution edit forms (not just delete)
+- Bulk export (CSV/Excel) for admin reports
+- Clustering markers on the map for scalability
+- Password reset & email verification
+- Frontend Dockerfile and full-stack Docker Compose deployment
 
 ---
 
-## 👥 Authors
-- **Akshay Keerthi Adhikasavan Suresh** – Full-stack developer, architect, and designer of ResQNet.  
-- Built with using **Java Spring Boot + React + Tailwind + Kafka + PostgreSQL**.  
+## Author
+
+**Akshay Keerthi Adhikasavan Suresh** — Full-stack developer, architect, and designer of ResQNet.
+
+Built with Java Spring Boot, React, Tailwind CSS, Apache Kafka, PostgreSQL, Redis, and WebSocket.

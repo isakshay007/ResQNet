@@ -1,0 +1,76 @@
+name: ResQNet CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: resqnetdb
+          POSTGRES_USER: resqnetuser
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build backend
+        working-directory: backend
+        run: mvn compile -q
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/resqnetdb
+          SPRING_DATASOURCE_USERNAME: resqnetuser
+          SPRING_DATASOURCE_PASSWORD: password
+          JWT_SECRET: ci-test-secret-key-that-is-long-enough-for-hs256
+          SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        run: mvn test -q
+
+      - name: Generate coverage report
+        working-directory: backend
+        run: mvn jacoco:report -q
+        if: always()
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-coverage-report
+          path: backend/target/site/jacoco/
+
+      - name: Test results summary
+        if: always()
+        run: |
+          echo "========================================="
+          echo "       TEST RESULTS SUMMARY              "
+          echo "========================================="
+          for f in backend/target/surefire-reports/*.txt; do
+            if [ -f "$f" ]; then
+              cat "$f"
+              echo "---"
+            fi
+          done

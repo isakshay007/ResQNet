@@ -1,6 +1,6 @@
 // src/components/MapView/ReportDisasterForm.jsx
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { FiAlertTriangle } from "react-icons/fi";
 import toast from "react-hot-toast";
@@ -41,9 +41,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:8080/api/disasters", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.post("/disasters", data);
 
       if (onSuccess) onSuccess(res.data);
 

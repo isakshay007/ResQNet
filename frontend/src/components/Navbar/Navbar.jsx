@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import ConfirmModal from "../common/ConfirmModal"; // ✅ import modal
+import ConfirmModal from "../common/ConfirmModal"; // import modal
 
 function Navbar() {
   const { user, logout } = useAuth();
@@ -170,7 +170,7 @@ function Navbar() {
 
       <div className="h-[64px]" />
 
-      {/* ✅ Confirm Modal Integration */}
+      {/*  Confirm Modal Integration */}
       {showConfirm && (
         <ConfirmModal
           title="Are you sure you want to logout?"
