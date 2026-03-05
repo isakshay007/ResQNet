@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/notifications")
-@CrossOrigin(origins = "*")
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Notifications")
 public class AdminNotificationController {

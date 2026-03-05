@@ -1,0 +1,50 @@
+# ResQNet — Render Blueprint (All-in-One)
+# Deploy: https://render.com/docs/blueprint-spec
+#
+# Frontend is deployed separately as a Render Static Site:
+#   Root Directory: frontend
+#   Build Command:  npm install && npm run build
+#   Publish Dir:    dist
+#   Env Vars:       VITE_API_URL, VITE_WS_URL (see README)
+
+services:
+  - type: web
+    name: resqnet-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /swagger-ui.html
+    envVars:
+      # --- Database (Neon PostgreSQL — free forever) ---
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+
+      # --- Security ---
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_DEFAULT_PASSWORD
+        value: admin123
+
+      # --- Disable Kafka (no free managed Kafka) ---
+      - key: RESQNET_KAFKA_ENABLED
+        value: "false"
+      - key: SPRING_AUTOCONFIGURE_EXCLUDE
+        value: "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
+
+      # --- Disable Redis caching for free tier ---
+      - key: SPRING_CACHE_TYPE
+        value: none
+
+      # --- CORS (replace with your Render Static Site URL) ---
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+      # --- JPA ---
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_SHOW_SQL
+        value: "false"

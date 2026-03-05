@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/disasters")
-@CrossOrigin(origins = "*")
 @Tag(name = "Disasters")
 public class DisasterController {
 

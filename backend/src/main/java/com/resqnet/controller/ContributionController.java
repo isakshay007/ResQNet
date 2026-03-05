@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/contributions")
-@CrossOrigin(origins = "*")
 @Tag(name = "Contributions")
 public class ContributionController {
 

@@ -17,13 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(
-        origins = {
-            "https://res-q-net-jf93.vercel.app",
-            "http://localhost:3000"             
-        },
-        allowCredentials = "true"
-)
 @Tag(name = "Authentication")
 public class AuthController {
 

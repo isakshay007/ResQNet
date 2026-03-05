@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/requests")
-@CrossOrigin(origins = "*")
 @Tag(name = "Resource Requests")
 public class ResourceRequestController {
 

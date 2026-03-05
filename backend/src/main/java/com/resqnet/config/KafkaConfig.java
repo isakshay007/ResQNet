@@ -15,11 +15,14 @@ import org.springframework.kafka.core.*;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 import java.util.HashMap;
 import java.util.Map;
 
 @EnableKafka
 @Configuration
+@ConditionalOnProperty(name = "resqnet.kafka.enabled", havingValue = "true", matchIfMissing = true)
 public class KafkaConfig {
 
     private static final String NOTIFICATION_TOPIC = "notifications";

@@ -2,6 +2,20 @@
 
 ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are faster, smarter, and safer.
 
+> **Live Demo** — [https://resqnet.onrender.com](https://resqnet.onrender.com)
+>
+> **Swagger API Docs** — [https://resqnet-backend.onrender.com/swagger-ui.html](https://resqnet-backend.onrender.com/swagger-ui.html)
+>
+> *Free tier — backend may take ~50s to wake on first request.*
+
+### Demo Credentials
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@resqnet.com` | `admin123` |
+| Reporter | Register a new account | — |
+| Responder | Register a new account | — |
+
 ---
 
 ## Key Features
@@ -10,8 +24,8 @@ ResQNet is a **full-stack disaster management platform** designed to connect **c
 - **JWT Authentication & Role-based Access** — Roles: `REPORTER`, `RESPONDER`, `ADMIN` with Spring Security + BCrypt password hashing
 - **Domain Models** — `User`, `Disaster`, `ResourceRequest`, `Contribution`, `Notification`
 - **Business Logic Services** — Disaster reporting, request creation, contribution tracking with pessimistic locking, and notification dispatch
-- **Event-Driven Notifications** — Apache Kafka publishes and consumes system notifications asynchronously
-- **Real-Time WebSocket Push** — STOMP over WebSocket pushes notifications to connected clients instantly after Kafka consumption
+- **Event-Driven Notifications** — Apache Kafka publishes and consumes system notifications asynchronously (with synchronous fallback when Kafka is unavailable)
+- **Real-Time WebSocket Push** — STOMP over WebSocket pushes notifications to connected clients instantly
 - **Redis Caching** — `@Cacheable` / `@CacheEvict` on disasters, requests, users, and admin summary with JSON serialization and 10-minute TTL
 - **API Documentation** — Swagger UI powered by springdoc-openapi with JWT "Authorize" button
 - **Admin Dashboard** — User, Disaster, Request, Contribution, Notification management with aggregated summary statistics
@@ -62,35 +76,103 @@ ResQNet is a **full-stack disaster management platform** designed to connect **c
 | Framer Motion | Animations |
 | react-hot-toast | Toast notifications |
 
+### DevOps & Cloud
+| Technology | Purpose |
+|---|---|
+| Docker + Docker Compose | Local containerized development |
+| GitHub Actions | CI/CD pipeline |
+| Render | Cloud deployment (backend + frontend) |
+| Neon | Managed PostgreSQL (free tier) |
+
 ---
 
 ## System Architecture
 
 ```
-Frontend (React + Tailwind)
+Frontend (React + Tailwind)  ──  Render Static Site
     |
-    |--- REST API (Axios + JWT) ---> Spring Boot Backend (port 8080)
+    |── REST API (Axios + JWT) ──> Spring Boot Backend  ──  Render Web Service
     |                                     |
-    |--- WebSocket (STOMP) ------------->|
+    |── WebSocket (STOMP) ──────────────> |
                                           |
-                    +---------------------+---------------------+
+                    +─────────────────────+─────────────────────+
                     |                     |                     |
-               PostgreSQL            Apache Kafka            Redis
-              (persistence)        (async messaging)        (caching)
+               PostgreSQL          Apache Kafka*            Redis*
+            (Neon — cloud)       (async messaging)        (caching)
                                           |
                                    NotificationConsumer
                                      |           |
                               Save to DB    Push via WebSocket
+
+* Kafka and Redis are optional — the app falls back to synchronous
+  notifications and no-cache mode when they are unavailable.
 ```
 
 - **Reporter** — Reports disasters, raises resource requests
 - **Responder** — Views requests, contributes resources (with pessimistic locking for concurrency)
 - **Admin** — Manages users, disasters, requests, contributions, and monitors system health
-- **Notifications** — Triggered on every action, published via Kafka, consumed and persisted to DB, then pushed to connected clients via WebSocket in real-time
+- **Notifications** — Triggered on every action, dispatched via Kafka (or synchronous fallback), persisted to DB, and pushed to connected clients via WebSocket in real-time
 
 ---
 
-## Prerequisites
+## Cloud Deployment (Render — Free Forever)
+
+The entire application is deployed on **Render.com** using the free tier with no credit card required.
+
+| Service | Platform | Tier | Sleeps? |
+|---|---|---|---|
+| Frontend | Render Static Site | Free | Never |
+| Backend | Render Web Service (Docker) | Free | After 15 min inactivity (~50s cold start) |
+| PostgreSQL | Neon.tech | Free (0.5 GB) | Auto-suspend after 5 min (~1s wake) |
+
+### Deploy Your Own
+
+#### 1. Database — Neon.tech
+
+1. Go to [neon.tech](https://neon.tech) and create a free project
+2. Note your connection string: `jdbc:postgresql://<host>/<db>?sslmode=require`, username, and password
+
+#### 2. Backend — Render Web Service
+
+1. Go to [render.com](https://render.com) → **New** → **Web Service**
+2. Connect your GitHub repo
+3. Set **Root Directory** to `backend`, **Runtime** to `Docker`, **Plan** to `Free`
+4. Add these environment variables:
+
+| Variable | Value |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://<neon-host>/<db>?sslmode=require` |
+| `SPRING_DATASOURCE_USERNAME` | *(from Neon)* |
+| `SPRING_DATASOURCE_PASSWORD` | *(from Neon)* |
+| `JWT_SECRET` | *(any 32+ char random string)* |
+| `ADMIN_DEFAULT_PASSWORD` | `admin123` |
+| `RESQNET_KAFKA_ENABLED` | `false` |
+| `SPRING_AUTOCONFIGURE_EXCLUDE` | `org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration` |
+| `SPRING_CACHE_TYPE` | `none` |
+| `CORS_ALLOWED_ORIGINS` | `https://<your-frontend>.onrender.com` |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` |
+
+5. Deploy — note the backend URL (e.g., `https://resqnet-backend.onrender.com`)
+
+#### 3. Frontend — Render Static Site
+
+1. Go to [render.com](https://render.com) → **New** → **Static Site**
+2. Connect the same GitHub repo
+3. Set **Root Directory** to `frontend`
+4. Set **Build Command** to `npm install && npm run build`
+5. Set **Publish Directory** to `dist`
+6. Add these environment variables:
+
+| Variable | Value |
+|---|---|
+| `VITE_API_URL` | `https://<your-backend>.onrender.com/api` |
+| `VITE_WS_URL` | `wss://<your-backend>.onrender.com/ws` |
+
+7. Deploy — note the frontend URL and update the backend's `CORS_ALLOWED_ORIGINS` if needed
+
+---
+
+## Prerequisites (Local Development)
 
 - Java 17+
 - Node.js 18+
@@ -100,7 +182,7 @@ Frontend (React + Tailwind)
 
 ## Quick Start (Docker Compose)
 
-The fastest way to run the entire stack:
+The fastest way to run the entire stack locally:
 
 ```bash
 git clone https://github.com/your-repo/resqnet.git
