@@ -9,14 +9,16 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Handles all exceptions globally and sends clean JSON responses to frontend
- */
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // --- Handle @Valid validation errors ---
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -48,15 +50,15 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.FORBIDDEN, "Access denied: " + ex.getMessage());
     }
 
-    // --- Handle generic runtime exceptions (500) ---
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
+        log.error("RuntimeException: {}", ex.getMessage(), ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error: " + ex.getMessage());
     }
 
-    // --- Catch-all for any other unhandled exceptions ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneral(Exception ex) {
+        log.error("Unhandled exception [{}]: {}", ex.getClass().getName(), ex.getMessage(), ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong, please try again later.");
     }
 
