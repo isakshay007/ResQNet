@@ -33,7 +33,7 @@ services:
       - key: RESQNET_KAFKA_ENABLED
         value: "false"
       - key: SPRING_AUTOCONFIGURE_EXCLUDE
-        value: "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
+        value: "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
 
       # --- Disable Redis caching for free tier ---
       - key: SPRING_CACHE_TYPE

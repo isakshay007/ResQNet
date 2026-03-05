@@ -2,19 +2,10 @@
 
 ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are faster, smarter, and safer.
 
-> **Live Demo** — [https://resqnet.onrender.com](https://resqnet.onrender.com)
+> **Live Demo** — [Demo!](https://resqnet.onrender.com)
 >
-> **Swagger API Docs** — [https://resqnet-backend.onrender.com/swagger-ui.html](https://resqnet-backend.onrender.com/swagger-ui.html)
->
-> *Free tier — backend may take ~50s to wake on first request.*
+> **Swagger API Docs** — [Swagger API Docs](https://resqnet-backend.onrender.com/swagger-ui.html)
 
-### Demo Credentials
-
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@resqnet.com` | `admin123` |
-| Reporter | Register a new account | — |
-| Responder | Register a new account | — |
 
 ---
 
