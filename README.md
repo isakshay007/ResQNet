@@ -2,9 +2,9 @@
 
 ResQNet is a **full-stack disaster management platform** designed to connect **communities in crisis** with the **right responders, resources, and administrators**. It enables disaster reporting, resource request tracking, contribution management, and real-time notifications to ensure relief efforts are faster, smarter, and safer.
 
-> **Live Demo** — [Demo!](https://resqnet.onrender.com)
+> **Live Demo** — [Demo!](https://resqnet-7jwz.onrender.com)
 >
-> **Swagger API Docs** — [Swagger API Docs](https://resqnet-backend.onrender.com/swagger-ui.html)
+> **Swagger API Docs** — [API Docs!](https://resqnet-backend-5rce.onrender.com/swagger-ui/index.html)
 
 
 ---
@@ -46,7 +46,7 @@ ResQNet is a **full-stack disaster management platform** designed to connect **c
 | Apache Kafka | Asynchronous event-driven notifications |
 | Spring WebSocket (STOMP) | Real-time notification push |
 | Redis 7 | Caching layer with JSON serialization |
-| springdoc-openapi 2.5 | Swagger UI & OpenAPI 3 documentation |
+| springdoc-openapi 2.8 | Swagger UI & OpenAPI 3 documentation |
 | JUnit 5 + Mockito | Unit testing |
 | JaCoCo | Code coverage reporting |
 | Maven | Build tool |
