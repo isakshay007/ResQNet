@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { FiAlertCircle, FiBell, FiInfo } from "react-icons/fi";
 

@@ -1,12 +1,10 @@
 // src/components/MapView/ResourceRequestForm.jsx
 import React, { useState } from "react";
 import api from "../../utils/api";
-import { useAuth } from "../../context/AuthContext";
 import { FiPackage } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 function ResourceRequestForm({ disasterId, onSuccess, onClose }) {
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

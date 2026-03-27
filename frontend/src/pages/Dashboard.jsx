@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import ReporterMapView from "../components/MapView/ReporterMapView";
 import ResponderMapView from "../components/MapView/ResponderMapView";
 

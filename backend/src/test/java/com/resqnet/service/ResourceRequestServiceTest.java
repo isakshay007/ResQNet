@@ -121,4 +121,41 @@ class ResourceRequestServiceTest {
         verify(resourceRequestRepository).deleteById(1L);
         verify(notificationProducer, atLeast(2)).sendNotification(any());
     }
+
+    @Test
+    void updateRequest_withRequestedQuantityLessThanFulfilled_throwsIllegalArgument() {
+        sampleRequest.setFulfilledQuantity(40);
+        when(resourceRequestRepository.findById(1L)).thenReturn(Optional.of(sampleRequest));
+
+        ResourceRequestDTO dto = new ResourceRequestDTO();
+        dto.setId(1L);
+        dto.setCategory("water");
+        dto.setRequestedQuantity(30);
+
+        assertThrows(IllegalArgumentException.class, () -> service.updateRequest(dto));
+        verify(resourceRequestRepository, never()).save(any(ResourceRequest.class));
+    }
+
+    @Test
+    void updateRequest_preservesFulfilledQuantityAndRecalculatesStatus() {
+        sampleRequest.setRequestedQuantity(100);
+        sampleRequest.setFulfilledQuantity(40); // PARTIAL
+        when(resourceRequestRepository.findById(1L)).thenReturn(Optional.of(sampleRequest));
+        when(resourceRequestRepository.save(any(ResourceRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResourceRequestDTO dto = new ResourceRequestDTO();
+        dto.setId(1L);
+        dto.setCategory("medical");
+        dto.setRequestedQuantity(120);
+
+        ResourceRequestDTO updated = service.updateRequest(dto);
+
+        assertEquals("medical", updated.getCategory());
+        assertEquals(120, updated.getRequestedQuantity());
+        assertEquals(40, updated.getFulfilledQuantity());
+        assertEquals(ResourceRequest.Status.PARTIAL, updated.getStatus());
+        verify(resourceRequestRepository).save(any(ResourceRequest.class));
+        verify(notificationProducer, atLeastOnce()).sendNotification(any());
+    }
 }

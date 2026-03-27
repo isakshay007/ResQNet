@@ -1,6 +1,8 @@
 package com.resqnet.security;
 
 import io.jsonwebtoken.Claims;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,6 +19,8 @@ import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final JwtUtil jwtUtil;
 
@@ -37,16 +41,10 @@ public class JwtFilter extends OncePerRequestFilter {
                 String email = claims.getSubject();
                 String role = claims.get("role", String.class);
 
-                // --- Debugging logs ---
-                System.out.println("🔑 Incoming JWT: " + token);
-                System.out.println("👤 Email from token: " + email);
-                System.out.println("🛡️ Raw role from token: " + role);
-
-                // --- Normalize role ---
+                // Normalize role
                 if (role != null && role.startsWith("ROLE_")) {
-                    role = role.substring(5); // strip leading ROLE_
+                    role = role.substring(5);
                 }
-                System.out.println("✅ Normalized role used: " + role);
 
                 // Grant authority
                 SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
@@ -60,11 +58,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
-
-                System.out.println("✔️ Authenticated user: " + email + " with ROLE_" + role);
+                log.debug("Authenticated user {} with role {}", email, role);
 
             } catch (Exception e) {
-                System.err.println("❌ JWT validation failed: " + e.getMessage());
+                log.warn("JWT validation failed: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Token");
                 return;
             }

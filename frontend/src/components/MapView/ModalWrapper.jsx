@@ -12,17 +12,31 @@ function ModalWrapper({ isOpen, onClose, children }) {
     return () => (document.body.style.overflow = "auto");
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const onEscape = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-none"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/20"
       aria-modal="true"
       role="dialog"
+      onClick={() => onClose?.()}
     >
-      {/*  No dark backdrop, fully transparent */}
       {/* Modal box */}
-      <div className="relative z-[1001] bg-white rounded-lg shadow-xl w-[400px] p-6 pointer-events-auto border border-gray-200">
+      <div
+        className="relative z-[1001] bg-white rounded-lg shadow-xl w-[400px] p-6 border border-gray-200"
+        onClick={(event) => event.stopPropagation()}
+      >
         {children}
       </div>
     </div>,

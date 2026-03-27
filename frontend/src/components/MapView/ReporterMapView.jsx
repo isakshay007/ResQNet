@@ -14,7 +14,7 @@ import ReportDisasterForm from "./ReportDisasterForm";
 import ResourceRequestForm from "./ResourceRequestForm";
 import ModalWrapper from "./ModalWrapper.jsx";
 import api from "../../utils/api";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { getDisasterIcon, reporterIcon, responderIcon } from "./mapIcons.js";
 import MapLegend from "./MapLegend";
 import DisasterPopup from "./DisasterPopup";
@@ -54,7 +54,6 @@ function ReporterMapView() {
   const [disasters, setDisasters] = useState([]);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [allRequests, setAllRequests] = useState([]);
-  const [myRequests, setMyRequests] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [resourceModal, setResourceModal] = useState(null);
 
@@ -70,9 +69,8 @@ function ReporterMapView() {
 
   const fetchRequestsAndContributions = async () => {
     try {
-      // Reporter’s own requests
-      const myReqRes = await api.get("/requests/my");
-      setMyRequests(myReqRes.data);
+      // Reporter’s own requests (preload for related pages / cache warmup)
+      await api.get("/requests/my");
 
       // All requests (reporters are allowed to view global list too)
       const allReqRes = await api.get("/requests");

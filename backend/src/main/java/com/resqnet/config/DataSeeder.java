@@ -3,12 +3,18 @@ package com.resqnet.config;
 import com.resqnet.model.User;
 import com.resqnet.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "app.seed.default-admin", havingValue = "true")
 public class DataSeeder {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -27,13 +33,10 @@ public class DataSeeder {
 
         userRepository.findByEmail(adminEmail).ifPresentOrElse(
             user -> {
-                // If user exists but not admin, upgrade role
                 if (user.getRole() != User.Role.ADMIN) {
-                    user.setRole(User.Role.ADMIN);
-                    userRepository.save(user);
-                    System.out.println("⚠ Existing user with " + adminEmail + " upgraded to ADMIN.");
+                    log.warn("User {} already exists but is not ADMIN. Seeder will not auto-elevate privileges.", adminEmail);
                 } else {
-                    System.out.println("ℹ Admin already exists. Seeder skipped.");
+                    log.info("Admin already exists. Seeder skipped.");
                 }
             },
             () -> {
@@ -46,8 +49,7 @@ public class DataSeeder {
 
                 userRepository.save(admin);
 
-                System.out.println(" Default admin account created: " + adminEmail);
-                System.out.println(" Please change the default password immediately after first login.");
+                log.warn("Default admin account created for {}. Change the password immediately.", adminEmail);
             }
         );
     }

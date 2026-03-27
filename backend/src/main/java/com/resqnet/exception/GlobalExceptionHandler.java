@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
         log.error("RuntimeException: {}", ex.getMessage(), ex);
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error: " + ex.getMessage());
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error. Please try again later.");
     }
 
     @ExceptionHandler(Exception.class)

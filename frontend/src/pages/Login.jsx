@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
-import { useAuth } from "../context/AuthContext"; 
+import { useAuth } from "../context/useAuth"; 
 import { jwtDecode } from "jwt-decode";
 
 function Login() {
@@ -43,7 +43,8 @@ function Login() {
     } catch (err) {
       console.error("Login error:", err);
       setError(
-        err.response?.data?.message ||
+        err.response?.data?.error ||
+          err.response?.data?.message ||
           "Invalid email or password. Please try again."
       );
     } finally {
@@ -79,8 +80,8 @@ function Login() {
         </p>
 
         {/* Login Form */}
-        <form className="space-y-8" onSubmit={handleSubmit}>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+        <form className="space-y-8" onSubmit={handleSubmit} data-testid="login-form">
+          {error && <p className="text-red-500 text-sm" data-testid="login-error">{error}</p>}
 
           {/* Email */}
           <div>
@@ -93,6 +94,7 @@ function Login() {
             <input
               type="email"
               id="email"
+              data-testid="login-email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -115,6 +117,7 @@ function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 id="password"
+                data-testid="login-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -136,6 +139,7 @@ function Login() {
           {/* Submit */}
           <button
             type="submit"
+            data-testid="login-submit"
             disabled={loading}
             className={`w-full py-3 text-lg font-semibold rounded-lg 
                        bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white

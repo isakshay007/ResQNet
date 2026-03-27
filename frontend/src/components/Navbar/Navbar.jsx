@@ -1,7 +1,7 @@
 // src/components/Navbar/Navbar.jsx
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import ConfirmModal from "../common/ConfirmModal"; // import modal
 
 function Navbar() {

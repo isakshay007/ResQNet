@@ -1,26 +1,21 @@
 // src/pages/Admin/AdminDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion"; //  for animations
 import api from "../../utils/api";
 import AdminNavbar from "../../components/Navbar/AdminNavbar";
 import Footer from "../../components/Footer";
 
 function AdminDashboard() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        setLoading(true);
         await api.get("/admin/summary");
       } catch (err) {
         console.error("Failed to fetch summary:", err);
         setError("Could not load summary data.");
-      } finally {
-        setLoading(false);
       }
     };
     fetchSummary();
@@ -71,16 +66,6 @@ function AdminDashboard() {
     },
   ];
 
-  // Animation variants
-  const cardVariants = {
-    hidden: { opacity: 0, y: 40 },
-    visible: (i) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: i * 0.15, duration: 0.6, ease: "easeOut" },
-    }),
-  };
-
   return (
     <div
       className="flex flex-col min-h-screen 
@@ -113,12 +98,8 @@ function AdminDashboard() {
           {/* Features Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
             {features.map((f, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                custom={idx}
-                initial="hidden"
-                animate="visible"
-                variants={cardVariants}
                 onClick={() => navigate(f.path)}
                 className={`group cursor-pointer rounded-2xl shadow-lg 
                             hover:shadow-2xl p-10 flex flex-col items-center justify-center
@@ -141,7 +122,7 @@ function AdminDashboard() {
                 <p className="text-sm text-white/90 mt-2 text-center">
                   {f.desc}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

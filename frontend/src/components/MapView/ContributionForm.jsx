@@ -1,6 +1,6 @@
 // src/components/MapView/ContributionForm.jsx
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { FiGift, FiX } from "react-icons/fi";
 import toast from "react-hot-toast";
 import api from "../../utils/api"; // centralized axios instance

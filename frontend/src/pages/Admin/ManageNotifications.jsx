@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 import AdminNavbar from "../../components/Navbar/AdminNavbar";
 import Footer from "../../components/Footer";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { FiAlertCircle, FiBell, FiInfo } from "react-icons/fi";
 
 function ManageNotifications() {

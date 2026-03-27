@@ -1,5 +1,5 @@
 // src/pages/Admin/AdminMapDashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -10,8 +10,8 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import api from "../../utils/api";
+import { useAuth } from "../../context/useAuth";
 import AdminNavbar from "../../components/Navbar/AdminNavbar";
 import Footer from "../../components/Footer";
 import {
@@ -53,32 +53,22 @@ function AdminMapDashboard() {
   const [error, setError] = useState("");
 
   // === API Calls ===
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [disRes, reqRes, userRes] = await Promise.all([
-        axios.get("http://localhost:8080/api/disasters", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get("http://localhost:8080/api/requests", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get("http://localhost:8080/api/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        api.get("/disasters"),
+        api.get("/requests"),
+        api.get("/users"),
       ]);
 
       setDisasters(disRes.data);
       setRequests(reqRes.data);
 
       // Fetch all contributions per request
-      let allContribs = [];
-      for (let r of reqRes.data) {
-        const cRes = await axios.get(
-          `http://localhost:8080/api/contributions/request/${r.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        allContribs = [...allContribs, ...cRes.data];
-      }
+      const contributionResponses = await Promise.all(
+        reqRes.data.map((request) => api.get(`/contributions/request/${request.id}`))
+      );
+      const allContribs = contributionResponses.flatMap((res) => res.data);
       setContributions(allContribs);
 
       // Split users
@@ -91,11 +81,11 @@ function AdminMapDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (token) fetchData();
-  }, [token]);
+  }, [token, fetchData]);
 
   // === Helpers ===
   const getRequestsForDisaster = (disasterId) =>

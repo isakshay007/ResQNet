@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import api from "../utils/api"; // axios wrapper with token
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 function Requests() {
   const { user } = useAuth();

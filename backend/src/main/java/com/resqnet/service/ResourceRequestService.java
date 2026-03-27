@@ -107,9 +107,15 @@ public class ResourceRequestService {
         ResourceRequest request = resourceRequestRepository.findById(dto.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
 
+        int fulfilledQuantity = request.getFulfilledQuantity();
+        if (dto.getRequestedQuantity() < fulfilledQuantity) {
+            throw new IllegalArgumentException(
+                    "Requested quantity cannot be less than already fulfilled quantity (" + fulfilledQuantity + ")"
+            );
+        }
+
         request.setCategory(dto.getCategory());
         request.setRequestedQuantity(dto.getRequestedQuantity());
-        request.setFulfilledQuantity(dto.getFulfilledQuantity());
         request.updateStatus();
 
         if (dto.getDisasterId() != null) {

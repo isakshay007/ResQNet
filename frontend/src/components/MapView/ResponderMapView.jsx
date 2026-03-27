@@ -10,7 +10,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import api from "../../utils/api";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import ModalWrapper from "./ModalWrapper.jsx";
 import ContributionForm from "./ContributionForm";
 import {
@@ -70,25 +70,6 @@ function ResponderMapView() {
     }
   };
 
-  const fetchContributionsForRequest = async (requestId) => {
-    try {
-      const res = await api.get(`/contributions/request/${requestId}`);
-      return res.data;
-    } catch (err) {
-      console.error(`Failed to fetch contributions for request ${requestId}:`, err);
-      return [];
-    }
-  };
-
-  const fetchAllContributions = async () => {
-    let all = [];
-    for (let req of requests) {
-      const contribs = await fetchContributionsForRequest(req.id);
-      all = [...all, ...contribs];
-    }
-    setContributions(all);
-  };
-
   useEffect(() => {
     if (token) {
       fetchDisasters();
@@ -97,9 +78,23 @@ function ResponderMapView() {
   }, [token]);
 
   useEffect(() => {
-    if (requests.length > 0) {
-      fetchAllContributions();
-    }
+    const loadContributions = async () => {
+      if (requests.length === 0) {
+        setContributions([]);
+        return;
+      }
+
+      try {
+        const responses = await Promise.all(
+          requests.map((request) => api.get(`/contributions/request/${request.id}`))
+        );
+        setContributions(responses.flatMap((response) => response.data));
+      } catch (err) {
+        console.error("Failed to fetch contributions:", err);
+      }
+    };
+
+    loadContributions();
   }, [requests]);
 
   // === Helpers ===
@@ -385,7 +380,6 @@ function ResponderMapView() {
           requestCategory={contributionModal?.requestCategory}
           onSuccess={() => {
             setContributionModal(null);
-            fetchAllContributions();
             fetchDisasters();
             fetchRequests();
           }}

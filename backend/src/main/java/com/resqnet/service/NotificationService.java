@@ -1,8 +1,10 @@
 package com.resqnet.service;
 
+import com.resqnet.model.AdminNotificationRead;
 import com.resqnet.dto.NotificationDTO;
 import com.resqnet.model.Notification;
 import com.resqnet.model.User;
+import com.resqnet.repository.AdminNotificationReadRepository;
 import com.resqnet.repository.NotificationRepository;
 import com.resqnet.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,11 +26,14 @@ public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
+    private final AdminNotificationReadRepository adminNotificationReadRepository;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
-    public NotificationService(NotificationRepository notificationRepository,
+    public NotificationService(AdminNotificationReadRepository adminNotificationReadRepository,
+                               NotificationRepository notificationRepository,
                                UserRepository userRepository) {
+        this.adminNotificationReadRepository = adminNotificationReadRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
     }
@@ -57,7 +64,7 @@ public class NotificationService {
         }
 
         Notification saved = notificationRepository.save(notification);
-        return mapToDTO(saved);
+        return mapToDTO(saved, saved.isRead());
     }
 
     // === Fetch all notifications (user + admin broadcasts if admin) ===
@@ -65,17 +72,22 @@ public class NotificationService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        List<Notification> notifications = new ArrayList<>(
-                notificationRepository.findByRecipientOrderByCreatedAtDesc(user)
-        );
+        List<Notification> notifications = new ArrayList<>(notificationRepository.findByRecipientOrderByCreatedAtDesc(user));
+        Set<Long> readAdminBroadcastIds = new HashSet<>();
 
         if (isAdmin(user)) {
             notifications.addAll(notificationRepository.findByAdminBroadcastTrueOrderByCreatedAtDesc());
+            readAdminBroadcastIds.addAll(adminNotificationReadRepository.findReadNotificationIdsByAdminId(user.getId()));
         }
 
         return notifications.stream()
                 .sorted(Comparator.comparing(Notification::getCreatedAt).reversed())
-                .map(this::mapToDTO)
+                .map(notification -> mapToDTO(
+                        notification,
+                        notification.isAdminBroadcast()
+                                ? readAdminBroadcastIds.contains(notification.getId())
+                                : notification.isRead()
+                ))
                 .collect(Collectors.toList());
     }
 
@@ -84,17 +96,22 @@ public class NotificationService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        List<Notification> notifications = new ArrayList<>(
-                notificationRepository.findByRecipientAndReadFalseOrderByCreatedAtDesc(user)
-        );
+        List<Notification> notifications = new ArrayList<>(notificationRepository.findByRecipientAndReadFalseOrderByCreatedAtDesc(user));
 
         if (isAdmin(user)) {
-            notifications.addAll(notificationRepository.findByAdminBroadcastTrueAndReadFalseOrderByCreatedAtDesc());
+            Set<Long> readAdminBroadcastIds = new HashSet<>(
+                    adminNotificationReadRepository.findReadNotificationIdsByAdminId(user.getId())
+            );
+            notifications.addAll(
+                    notificationRepository.findByAdminBroadcastTrueOrderByCreatedAtDesc().stream()
+                            .filter(notification -> !readAdminBroadcastIds.contains(notification.getId()))
+                            .toList()
+            );
         }
 
         return notifications.stream()
                 .sorted(Comparator.comparing(Notification::getCreatedAt).reversed())
-                .map(this::mapToDTO)
+                .map(notification -> mapToDTO(notification, false))
                 .collect(Collectors.toList());
     }
 
@@ -103,11 +120,20 @@ public class NotificationService {
     public void markAsRead(Long id, String userEmail) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Notification not found"));
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        // allow recipient OR admin (for broadcasts)
-        if (!notification.isAdminBroadcast() &&
-                (notification.getRecipient() == null ||
-                        !notification.getRecipient().getEmail().equalsIgnoreCase(userEmail))) {
+        if (notification.isAdminBroadcast()) {
+            if (!isAdmin(user)) {
+                throw new AccessDeniedException("Only admins can mark admin broadcasts as read");
+            }
+            adminNotificationReadRepository.findByNotificationAndAdmin(notification, user)
+                    .orElseGet(() -> adminNotificationReadRepository.save(new AdminNotificationRead(notification, user)));
+            return;
+        }
+
+        if (notification.getRecipient() == null ||
+                !notification.getRecipient().getEmail().equalsIgnoreCase(userEmail)) {
             throw new AccessDeniedException("Not authorized to update this notification");
         }
 
@@ -126,6 +152,7 @@ public class NotificationService {
             if (!notification.isDeletable()) {
                 throw new IllegalArgumentException("This notification cannot be deleted");
             }
+            adminNotificationReadRepository.deleteByNotification(notification);
             notificationRepository.delete(notification);
             return;
         }
@@ -141,23 +168,24 @@ public class NotificationService {
             throw new IllegalArgumentException("This notification cannot be deleted");
         }
 
+        adminNotificationReadRepository.deleteByNotification(notification);
         notificationRepository.delete(notification);
     }
 
     // === Admin-only helper ===
     public List<NotificationDTO> getAdminNotifications() {
         return notificationRepository.findByAdminBroadcastTrueOrderByCreatedAtDesc().stream()
-                .map(this::mapToDTO)
+                .map(notification -> mapToDTO(notification, notification.isRead()))
                 .collect(Collectors.toList());
     }
 
     // === Mapper ===
-    private NotificationDTO mapToDTO(Notification notification) {
+    private NotificationDTO mapToDTO(Notification notification, boolean read) {
         NotificationDTO dto = new NotificationDTO();
         dto.setId(notification.getId());
         dto.setMessage(notification.getMessage());
         dto.setType(notification.getType());
-        dto.setRead(notification.isRead());
+        dto.setRead(read);
         dto.setDeletable(notification.isDeletable());
         dto.setCreatedAt(notification.getCreatedAt());
         dto.setRecipientEmail(

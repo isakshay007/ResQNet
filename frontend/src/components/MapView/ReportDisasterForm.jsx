@@ -1,12 +1,10 @@
 // src/components/MapView/ReportDisasterForm.jsx
 import React, { useState } from "react";
 import api from "../../utils/api";
-import { useAuth } from "../../context/AuthContext";
 import { FiAlertTriangle } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 function ReportDisasterForm({ position, onSuccess, onClose }) {
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -51,7 +49,8 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
     } catch (err) {
       console.error("Report failed:", err.response?.data || err.message);
       toast.error(
-        err.response?.data?.message ||
+        err.response?.data?.error ||
+          err.response?.data?.message ||
           " Failed to report disaster. Please try again."
       );
     } finally {
@@ -63,6 +62,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
     <div className="flex items-center justify-center w-full h-full relative">
       <form
         onSubmit={handleSubmit}
+        data-testid="report-disaster-form"
         className="space-y-5 max-w-md w-full p-6 bg-white rounded-xl shadow-xl border-t-4 border-red-600 relative"
       >
         {/* Header */}
@@ -85,6 +85,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           </label>
           <select
             name="type"
+            data-testid="disaster-type"
             defaultValue=""
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           >
@@ -106,6 +107,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           </label>
           <select
             name="severity"
+            data-testid="disaster-severity"
             defaultValue=""
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
           >
@@ -138,6 +140,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
           </label>
           <textarea
             name="description"
+            data-testid="disaster-description"
             placeholder="Describe the disaster..."
             rows="4"
             className="w-full border border-gray-300 p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-red-500"
@@ -148,6 +151,7 @@ function ReportDisasterForm({ position, onSuccess, onClose }) {
         <div className="flex space-x-3 pt-2">
           <button
             type="submit"
+            data-testid="disaster-submit"
             disabled={loading}
             className={`flex-1 flex items-center justify-center py-3 rounded-lg font-bold text-white transition ${
               loading
